@@ -149,7 +149,30 @@
         const { useState, useEffect, useRef, useMemo } = React;
 
         // --- FIREBASE CONFIG (MANDATORY USE OF GLOBALS) ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        // This configuration will be used when deploying the app outside of the Canvas environment (e.g., GitHub).
+        const EXTERNAL_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCbwSFzMzJuNsJFROkKTvNXLwmt7lI3m4w",
+            authDomain: "ms-tracker-9bee7.firebaseapp.com",
+            projectId: "ms-tracker-9bee7",
+            storageBucket: "ms-tracker-9bee7.firebasestorage.app",
+            messagingSenderId: "99948342020",
+            appId: "1:99948342020:web:400d959a881355120afe51"
+        };
+        
+        const firebaseConfig = (() => {
+            try {
+                // If running in Canvas environment, use the provided global config
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                    return JSON.parse(__firebase_config);
+                }
+                // Otherwise, use the hardcoded config for external deployment
+                return EXTERNAL_FIREBASE_CONFIG;
+            } catch (e) {
+                console.error("Failed to initialize firebaseConfig. Falling back to external config:", e);
+                return EXTERNAL_FIREBASE_CONFIG;
+            }
+        })();
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'mumi-tracker-default';
 
         const app = initializeApp(firebaseConfig);
@@ -919,9 +942,11 @@
 
                 const initAuth = async () => {
                     try {
+                        // Priority 1: Use Canvas custom token if available
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await signInWithCustomToken(auth, __initial_auth_token);
                         } else {
+                            // Priority 2: Fallback to Anonymous Sign-in for GitHub deployment
                             await signInAnonymously(auth);
                         }
                     } catch (e) {
