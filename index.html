@@ -95,9 +95,10 @@
     <div id="root" class="h-full w-full"></div>
 
     <script type="text/babel" data-type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        // Firebase SDK version updated to 11.6.1 for better compatibility
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         // --- ICONS (Lucide paths used) ---
         const Icon = ({ path, size = 24, className = "" }) => (
@@ -154,7 +155,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        // import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        // import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         // setLogLevel('debug'); // Optional: for debugging firestore
 
         // --- UTILS ---
@@ -439,7 +440,11 @@
 
             const handleSave = () => {
                 const dataToSave = { ...localData, cost: parseFloat(localData.cost) };
-                if (isNaN(dataToSave.cost) || dataToSave.cost <= 0) return alert('Please enter a valid cost.');
+                if (isNaN(dataToSave.cost) || dataToSave.cost <= 0) {
+                     // Using console error instead of alert
+                    console.error("Validation Error: Please enter a valid cost.");
+                    return; 
+                }
                 onSave(dataToSave);
             };
 
