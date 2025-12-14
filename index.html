@@ -231,7 +231,8 @@
 
 
         const DEFAULT_RATE = 42.58; 
-        const frequencies = [{ id: 'monthly', label: 'Monthly' }, { id: 'yearly', label: 'Yearly' }];
+        // UPDATED: Added 'two_years' frequency
+        const frequencies = [{ id: 'monthly', label: 'Monthly' }, { id: 'yearly', label: 'Yearly' }, { id: 'two_years', label: '2 Years' }];
         const currencies = [{ id: 'USD', symbol: '$' }, { id: 'TRY', symbol: '₺' }];
         
         const paymentMethods = [
@@ -280,6 +281,16 @@
             textArea.select();
             try { document.execCommand('copy'); } catch (err) {}
             document.body.removeChild(textArea);
+        };
+        
+        // NEW UTILITY: Calculates the cost per month
+        const getMonthlyCost = (cost, frequency) => {
+            switch (frequency) {
+                case 'yearly': return cost / 12;
+                case 'two_years': return cost / 24;
+                case 'monthly':
+                default: return cost;
+            }
         };
 
         // --- COMPONENTS ---
@@ -638,6 +649,9 @@
                             <div className="grid gap-3 grid-cols-1">
                                 {processedSubs.map(sub => {
                                     const displayCost = convertToViewCurrency(sub.cost, sub.currency);
+                                    // NEW: Calculate monthly cost for display
+                                    const monthlyCost = getMonthlyCost(displayCost, sub.frequency);
+                                    
                                     const isActive = sub.status === 'active';
                                     const approaching = isActive && isApproaching(sub.startDate, sub.frequency, sub.cancellationDate);
                                     const CatData = categories.find(c => c.id === sub.category) || categories[5];
@@ -662,8 +676,9 @@
                                                     </div>
                                                 </div>
                                                 <div className="text-right shrink-0">
-                                                    <div className="font-bold text-lg text-white tracking-tight">{formatMoney(displayCost, viewCurrency)}</div>
-                                                    <div className={`text-[10px] font-bold ${approaching && !isCancelled ? 'text-yellow-400' : 'text-slate-500'}`}>{new Date(sub.startDate).getDate()}{['st','nd','rd'][((new Date(sub.startDate).getDate()+90)%100-10)%10-1]||'th'}</div>
+                                                    {/* UPDATED: Show Monthly Cost on the card */}
+                                                    <div className="font-bold text-lg text-white tracking-tight">{formatMoney(monthlyCost, viewCurrency)}</div>
+                                                    <div className={`text-[10px] font-bold ${approaching && !isCancelled ? 'text-yellow-400' : 'text-slate-500'}`}>/ Month</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -686,8 +701,8 @@
                     const isCancelled = sub.status === 'cancelled' || (sub.cancellationDate && new Date(sub.cancellationDate) < new Date());
                     if (!isCancelled) {
                         const amount = convertToViewCurrency(sub.cost, sub.currency);
-                        // Calculate monthly cost: yearly / 12, or just the amount for monthly
-                        const monthlyCost = sub.frequency === 'yearly' ? amount / 12 : amount;
+                        // Calculate monthly cost using the new utility
+                        const monthlyCost = getMonthlyCost(amount, sub.frequency);
                         const catId = sub.category || 'general';
                         sums[catId] = (sums[catId] || 0) + monthlyCost;
                         total += monthlyCost;
@@ -704,7 +719,7 @@
                     <div className="flex-1 overflow-y-auto p-6 pb-28 w-full box-border">
                         <div className="glass p-8 rounded-3xl mb-6 flex flex-col items-center">
                             <h2 className="text-xs font-bold text-slate-400 uppercase text-center mb-6 tracking-widest">Est. Monthly Spend ({viewCurrency})</h2>
-                            <DonutChart data={chartData.data} total={chartData.total} />
+                            <DonutChart data={chartData.data} total={chartData.total} viewCurrency={viewCurrency} />
                         </div>
                         <div className="space-y-3">
                             <h3 className="text-xs font-bold text-slate-500 uppercase ml-1 mb-2">Breakdown</h3>
@@ -848,51 +863,7 @@
             );
         };
         
-        const AIView = ({ subscriptions, onGenerate }) => {
-            const [output, setOutput] = useState(null);
-            const [loading, setLoading] = useState(false);
-            const run = async () => { 
-                if (subscriptions.length === 0) return;
-                setLoading(true); 
-                const res = await onGenerate(subscriptions); 
-                setOutput(res); 
-                setLoading(false); 
-            };
-            
-            const markdownBodyStyle = {
-                // Simple CSS for markdown rendering fidelity
-                lineHeight: '1.6',
-                'p': { marginBottom: '1rem' },
-                'h2': { fontSize: '1.25rem', fontWeight: 'bold', marginTop: '1.5rem', marginBottom: '0.75rem', color: '#facc15' },
-                'ul': { paddingLeft: '1.5rem', listStyleType: 'disc', marginBottom: '1rem' },
-                'li': { marginBottom: '0.5rem' }
-            };
-
-            return (
-                <div className="flex flex-col h-full bg-[#0f172a] w-full">
-                    <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icon path={Paths.Sparkles} size={20} className="text-yellow-400"/> AI Advisor</h1></div>
-                    <div className="flex-1 overflow-y-auto p-6 pb-28 flex flex-col items-center w-full box-border">
-                        {!output && !loading && (
-                            <div className="text-center mt-12 animate-in fade-in">
-                                <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-700"><Icon path={Paths.Sparkles} size={40} className="text-yellow-400" /></div>
-                                <h2 className="font-bold text-xl text-white mb-2">Ready to Analyze?</h2>
-                                <p className="text-xs text-slate-400 mb-8 max-w-xs mx-auto leading-relaxed">I'll review your {subscriptions.length} subscriptions and roast your spending habits in Turkish.</p>
-                                <button onClick={run} disabled={subscriptions.length === 0} className="bg-yellow-400 text-slate-900 font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 transition active:scale-95 disabled:opacity-50">
-                                    {subscriptions.length === 0 ? "Add Subs First" : "Start Analysis"}
-                                </button>
-                            </div>
-                        )}
-                        {loading && <div className="text-center mt-24"><div className="w-12 h-12 border-4 border-slate-700 border-t-yellow-400 rounded-full animate-spin mx-auto mb-4"></div><p className="text-yellow-400 font-medium animate-pulse text-sm">Thinking...</p></div>}
-                        {output && !loading && (
-                            <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4">
-                                <div className="glass p-6 rounded-3xl shadow-lg border border-white/5 whitespace-pre-wrap text-slate-300" style={markdownBodyStyle}>{output}</div>
-                                <button onClick={() => setOutput(null)} className="w-full mt-4 py-3 text-slate-400 font-bold bg-slate-800 rounded-2xl text-sm border border-slate-700 active:scale-95">Clear</button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
-        };
+        // REMOVED AIView and related logic
 
         const SettingsView = ({ exchangeRate, setExchangeRate, accessKey, onLogout, viewCurrency, setViewCurrency, userId }) => (
             <div className="flex flex-col h-full bg-[#0f172a] w-full">
@@ -1025,6 +996,12 @@
                             while (chargeYear < ty) chargeYear++;
                             if (chargeYear !== ty) return; // Only charge if this is the charge year
                         }
+                    } else if (s.frequency === 'two_years') {
+                        // For two years, we need to check if we are in the charge month/year and it's every 2 years
+                        const startYear = start.getFullYear();
+                        const yearDiff = ty - startYear;
+                        if (start.getMonth() !== tm || yearDiff % 2 !== 0 || yearDiff < 0) return;
+
                     } else if (s.frequency === 'monthly') {
                         // Check if subscription started before or in the selected month
                         if (start.getFullYear() > ty || (start.getFullYear() === ty && start.getMonth() > tm)) return;
@@ -1033,6 +1010,7 @@
                     }
                     
                     const charge = true;
+                    // For total monthly display, we still use the full price for the month it charges
                     if(charge) total += convertToViewCurrency(s.cost, s.currency);
                 });
                 return formatMoney(total, viewCurrency);
@@ -1058,7 +1036,7 @@
                                 "name": { "type": "STRING", "description": "Subscription name (e.g., 'Netflix', 'Spotify')." },
                                 "cost": { "type": "NUMBER", "description": "The numerical cost." },
                                 "currency": { "type": "STRING", "enum": ["TRY", "USD"], "description": "Currency of the cost." },
-                                "frequency": { "type": "STRING", "enum": ["monthly", "yearly"], "description": "Recurring period." },
+                                "frequency": { "type": "STRING", "enum": ["monthly", "yearly", "two_years"], "description": "Recurring period." },
                                 "paymentMethod": { "type": "STRING", "enum": ["credit_card", "apple", "android", "paypal", "other"], "description": "How the payment is made." },
                                 "cardBank": { "type": "STRING", "description": "Bank name if payment is 'credit_card'." },
                                 "cardLast4": { "type": "STRING", "description": "Last 4 digits of the card if payment is 'credit_card'." }
@@ -1108,27 +1086,8 @@
                     showToast("Delete from cloud failed.");
                 }
             };
-
-            const generateAI = async (subs) => {
-                if (subs.length === 0) return "You need to add some subscriptions first, Mumi!";
-
-                const list = subs.map(s => {
-                    const cost = s.cost ? `${s.cost}${s.currency}` : 'N/A';
-                    const freq = s.frequency || 'N/A';
-                    const pay = s.paymentMethod || '?';
-                    return `${s.name} (${cost} ${freq}, via ${pay})`;
-                }).join('; ');
-                
-                const prompt = `Act as Mumi's personal, highly judgmental financial advisor. Mumi is a passionate Fenerbahçe fan. Review this list of Mumi's active subscriptions: [${list}]. 
-                Provide a short, critical analysis of the spending habits (roasting is encouraged) and suggest one specific, clear subscription Mumi should cancel immediately to save money, explaining why in a humorous way. 
-                Write the entire response in Turkish.
-                Format the output cleanly with paragraphs and bullet points for readability.`;
-                
-                const payload = { contents: [{ parts: [{ text: prompt }] }] };
-                
-                const res = await callGemini(payload);
-                return res || "Analysis failed. The advisor seems to be on vacation (or rate limited).";
-            };
+            
+            // AI Analysis feature removed as requested
 
             if (!accessKey) return <AccessModal onJoin={handleJoin} />;
 
@@ -1138,7 +1097,6 @@
                         {activeTab === 'home' && <TrackerView subscriptions={subscriptions} loading={loading} openEdit={setEditingSub} viewCurrency={viewCurrency} convertToViewCurrency={convertToViewCurrency} activeCount={activeCount} exchangeRate={exchangeRate} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calculatedTotal={calculatedTotal} />}
                         {activeTab === 'add' && <AddView onSave={saveSub} currencies={currencies} frequencies={frequencies} smartFill={smartFill} isSmartLoading={isSmartLoading} />}
                         {activeTab === 'analyze' && <AnalyzeView subscriptions={subscriptions} viewCurrency={viewCurrency} convertToViewCurrency={convertToViewCurrency} />}
-                        {activeTab === 'ai' && <AIView subscriptions={subscriptions} onGenerate={generateAI} />}
                         {activeTab === 'settings' && <SettingsView exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} accessKey={accessKey} onLogout={handleLogout} viewCurrency={viewCurrency} setViewCurrency={setViewCurrency} userId={user?.uid || 'N/A'} />}
                     </div>
                     
@@ -1152,7 +1110,7 @@
                                     <Icon path={Paths.Plus} size={28} />
                                 </button>
                             </div>
-                            <button onClick={() => setActiveTab('ai')} className={`flex flex-col items-center ${activeTab === 'ai' ? 'text-yellow-400' : 'text-slate-500 hover:text-white transition'}`}><Icon path={Paths.Sparkles} size={22} /></button>
+                            {/* AI tab removed */}
                             <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center ${activeTab === 'settings' ? 'text-yellow-400' : 'text-slate-500 hover:text-white transition'}`}><Icon path={Paths.Settings} size={22} /></button>
                         </div>
                     </div>
