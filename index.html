@@ -593,11 +593,12 @@
             return (
                 <div className="flex flex-col h-full bg-[#0f172a] w-full">
                     <div className="glass-panel px-6 py-4 pt-safe flex justify-between items-center">
-                        <button onClick={() => changeMonth(-1)} className="p-2 text-slate-400 hover:text-white transition"><Icon path={Paths.ChevronLeft} size={24} /></button>
+                        <button onClick={() => changeMonth(-1)} className="p-2 text-slate-400 hover:text-white transition active:scale-95"><Icon path={Paths.ChevronLeft} size={24} /></button>
                         <h1 className="font-bold text-lg text-white">
+                            <Icon path={Paths.Calendar} size={20} className="text-yellow-400 inline mr-2"/>
                             {selectedDate.toLocaleString('default', { month: 'long' })} {selectedDate.getFullYear()}
                         </h1>
-                        <button onClick={() => changeMonth(1)} className="p-2 text-slate-400 hover:text-white transition"><Icon path={Paths.ChevronRight} size={24} /></button>
+                        <button onClick={() => changeMonth(1)} className="p-2 text-slate-400 hover:text-white transition active:scale-95"><Icon path={Paths.ChevronRight} size={24} /></button>
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 pb-28 w-full box-border">
                         <RenewalCalendar 
@@ -962,6 +963,7 @@
                 </div>
             );
         };
+
 
         const AnalyzeView = ({ subscriptions, viewCurrency, convertToViewCurrency }) => {
             const chartData = useMemo(() => {
