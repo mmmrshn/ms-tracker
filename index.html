@@ -28,19 +28,18 @@
             --glass-border: rgba(255, 255, 255, 0.08);
         }
 
-        html, body {
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-            background-color: var(--fb-navy);
-        }
-
+        /* RESET & BASE STYLES */
+        html { height: 100%; width: 100%; overflow: hidden; background-color: var(--fb-navy); }
         body { 
+            height: 100%; width: 100%; overflow: hidden;
             font-family: 'Manrope', sans-serif; 
+            background-color: var(--fb-navy);
             color: #f8fafc;
             -webkit-tap-highlight-color: transparent;
+            overscroll-behavior: none;
         }
-        
+
+        /* UTILITIES */
         .glass {
             background: rgba(30, 41, 59, 0.6);
             backdrop-filter: blur(12px);
@@ -49,22 +48,22 @@
         }
         
         .glass-panel {
-            background: rgba(15, 23, 42, 0.95);
+            background: rgba(15, 23, 42, 0.96);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            /* Extra large padding for Notch + Status Bar */
-            padding-top: max(1.5rem, env(safe-area-inset-top)); 
+            /* Massive padding for iPhone Notch/Island */
+            padding-top: max(3.5rem, calc(env(safe-area-inset-top) + 1rem)); 
             padding-bottom: 1rem;
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .snap-y { scroll-snap-type: y mandatory; }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        
+        .pb-safe { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
         
         .btn-3d {
-            transition: all 0.1s;
+            transition: transform 0.1s, box-shadow 0.1s;
             box-shadow: 0px 4px 0px 0px #ca8a04;
             transform: translateY(0);
         }
@@ -72,9 +71,18 @@
             transform: translateY(4px);
             box-shadow: 0px 0px 0px 0px #ca8a04;
         }
-        
-        input, select { color-scheme: dark; }
+
+        /* Input Resets */
+        input, select { 
+            color-scheme: dark; 
+            appearance: none; -webkit-appearance: none; 
+        }
         input::placeholder { color: #64748b; }
+        
+        /* Fix for date inputs on iOS to prevent overflow */
+        input[type="date"] {
+            min-width: 95%; /* Prevent pushing container width */
+        }
     </style>
 </head>
 <body>
@@ -83,24 +91,11 @@
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
         import { getFirestore, collection, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
-        // --- ROBUST ICON COMPONENT ---
-        // Forces size via style AND attributes AND utility classes
+        // --- ICONS ---
         const Icon = ({ path, size = 24, className = "" }) => (
-            <svg 
-                xmlns="http://www.w3.org/2000/svg"
-                width={size} 
-                height={size} 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                className={`shrink-0 ${className}`}
-                style={{ width: `${size}px`, height: `${size}px`, minWidth: `${size}px`, minHeight: `${size}px` }}
-            >
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className}`} style={{ minWidth: size, minHeight: size }}>
                 {path}
             </svg>
         );
@@ -120,8 +115,6 @@
             Share2: <><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></>,
             TrendingUp: <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></>,
             AlertCircle: <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>,
-            
-            // Payment Icons
             CreditCard: <><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></>,
             Apple: <path d="M17.276 14.531c-.021 2.373 2.073 3.176 2.162 3.22-1.802 2.585-3.693 2.193-4.524 2.193-1.129 0-2.31-.699-2.926-.699-.679 0-1.688.683-2.775.683-2.222 0-4.697-2.147-4.697-5.32 0-2.812 1.83-4.28 3.593-4.28 1.125 0 2.02.771 2.653.771.633 0 1.637-.811 2.921-.811.479 0 2.223.041 3.299 1.583-2.651 1.29-2.194 4.382.294 2.66zm-2.122-6.953c.969-1.161.812-2.783.812-2.783-1.63.063-2.922 1.077-3.328 2.218-.363 1.008.016 2.639.016 2.639 1.691.132 2.5-.914 2.5-.914z"/>,
             Android: <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993.0001.5511-.4486.9997-.9996.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993 0 .5511-.4486.9997-.9996.9997m11.4045-6.02l1.9973-3.459a.415.415 0 00-.152-.5676.4155.4155 0 00-.568.1524l-2.026 3.5095a12.2133 12.2133 0 00-5.132-1.1265 12.21 12.21 0 00-5.132 1.1265L4.8432 5.4473a.4162.4162 0 00-.568-.1524.415.415 0 00-.152.5676l1.9973 3.459C2.6888 11.1866.3436 14.6586.3436 18.667h23.3128c0-4.0084-2.3452-7.4804-5.7287-9.3456"/>,
@@ -171,7 +164,6 @@
             } catch (e) { return null; }
         };
 
-        // --- CONFIG ---
         const DEFAULT_RATE = 42.58; 
         const frequencies = [{ id: 'monthly', label: 'Monthly' }, { id: 'yearly', label: 'Yearly' }];
         const currencies = [{ id: 'USD', symbol: '$' }, { id: 'TRY', symbol: '₺' }];
@@ -378,7 +370,7 @@
             }, [subscriptions, filterMethod, sortType, viewCurrency, exchangeRate]);
 
             return (
-                <div className="flex flex-col h-full bg-[#0f172a] w-full"> 
+                <div className="flex flex-col h-full w-full bg-[#0f172a]"> 
                     <div className="glass-panel px-6 flex justify-between items-center z-10 sticky top-0 w-full box-border">
                          <div className="flex items-center gap-3 min-w-0">
                             <div className="w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center text-[#002d72] font-bold shadow-lg shrink-0">
@@ -539,11 +531,15 @@
                             
                             {/* Cancellation Date (Optional) */}
                             <div>
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1 flex justify-between">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1 flex justify-between items-center">
                                     <span>Cancel Date (Optional)</span>
-                                    <span className="text-slate-600 normal-case font-normal text-[9px]">Auto-stop billing</span>
+                                    {localData.cancellationDate && (
+                                        <button onClick={() => setLocalData({...localData, cancellationDate: ''})} className="text-[10px] text-red-400 font-bold uppercase hover:text-red-300">Clear</button>
+                                    )}
                                 </label>
-                                <input type="date" className="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0 focus:ring-1 focus:ring-red-400 focus:border-red-400" value={localData.cancellationDate || ''} onChange={e => setLocalData({...localData, cancellationDate: e.target.value})} />
+                                <div className="relative">
+                                    <input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0 focus:ring-1 focus:ring-red-400 focus:border-red-400" value={localData.cancellationDate || ''} onChange={e => setLocalData({...localData, cancellationDate: e.target.value})} />
+                                </div>
                             </div>
 
                             {/* Category Selector */}
@@ -570,7 +566,7 @@
                                 {localData.paymentMethod === 'credit_card' && (
                                     <div className="grid grid-cols-2 gap-3 mt-2 animate-in slide-in-from-top-1 box-border max-w-full">
                                         <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Bank Name" value={localData.cardBank} onChange={e => setLocalData({...localData, cardBank: e.target.value})} />
-                                        <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Last 4 Digits" maxLength={4} value={localData.cardLast4} onChange={e => setLocalData({...localData, cardLast4: e.target.value})} />
+                                        <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Last 4" maxLength={4} value={localData.cardLast4} onChange={e => setLocalData({...localData, cardLast4: e.target.value})} />
                                     </div>
                                 )}
                             </div>
@@ -710,16 +706,30 @@
           const saveSub = async (data) => {
              const newSub = { id: editingSub ? editingSub.id : crypto.randomUUID(), ...data, cost: parseFloat(data.cost) };
              const newSubs = editingSub ? subscriptions.map(s => s.id === editingSub.id ? newSub : s) : [...subscriptions, newSub];
-             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_subscriptions', accessKey), { items: newSubs }, { merge: true });
-             if(editingSub) { setEditingSub(null); } else { setActiveTab('home'); }
+             
+             // Optimistic update first!
+             setSubscriptions(newSubs); 
+             if(editingSub) setEditingSub(null); else setActiveTab('home');
              showToast(editingSub ? "Updated!" : "Added!");
+
+             // Background sync
+             try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_subscriptions', accessKey), { items: newSubs }, { merge: true });
+             } catch(e) {
+                // Could revert here if needed, but for simplicity let's keep UI responsive
+                console.error("Save failed", e);
+             }
           };
 
           const deleteSub = async () => {
              if(!deleteId) return;
              const newSubs = subscriptions.filter(s => s.id !== deleteId);
+             
+             setSubscriptions(newSubs); // Optimistic
+             setDeleteId(null); 
+             setEditingSub(null);
+
              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_subscriptions', accessKey), { items: newSubs }, { merge: true });
-             setDeleteId(null); setEditingSub(null);
           };
 
           const generateAI = async (subs) => {
@@ -756,21 +766,27 @@
 
                 {/* Edit Modal (Sheet) */}
                 {editingSub && (
-                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
-                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto transition-opacity" onClick={() => setEditingSub(null)}></div>
-                      <div className="bg-[#1e293b] w-full max-w-md rounded-t-3xl p-6 shadow-2xl pointer-events-auto transform transition-transform duration-300 animate-in slide-in-from-bottom-10 h-auto max-h-[85vh] overflow-y-auto border-t border-white/10 pb-12 box-border mx-auto">
-                        <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-white">Edit Membership</h2><button onClick={() => setEditingSub(null)} className="p-2 bg-slate-800 rounded-full text-slate-400"><Icon path={Paths.X} size={18} /></button></div>
+                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-auto" style={{zIndex: 9999}}> {/* High Z-Index ensuring top layer */}
+                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setEditingSub(null)}></div>
+                      <div className="bg-[#1e293b] w-full max-w-md rounded-t-3xl p-6 shadow-2xl transform transition-transform duration-300 animate-in slide-in-from-bottom-10 h-auto max-h-[85vh] overflow-y-auto border-t border-white/10 pb-12 box-border mx-auto relative z-10">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-white">Edit Membership</h2>
+                            <button type="button" onClick={() => setEditingSub(null)} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:bg-slate-700 active:bg-slate-600 transition-colors cursor-pointer"><Icon path={Paths.X} size={18} /></button>
+                        </div>
                         <div className="space-y-4">
                             <input className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:border-yellow-400 outline-none box-border max-w-full min-w-0" value={editingSub.name} onChange={e => setEditingSub({...editingSub, name: e.target.value})} />
                             <div className="grid grid-cols-2 gap-3"><input type="number" className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={editingSub.cost} onChange={e => setEditingSub({...editingSub, cost: e.target.value})} /><select className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={editingSub.currency} onChange={e => setEditingSub({...editingSub, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
-                            <div className="flex gap-3"><div className="flex bg-slate-800 p-1 rounded-2xl flex-1 border border-slate-700 box-border max-w-full">{frequencies.map(f => (<button key={f.id} onClick={() => setEditingSub({...editingSub, frequency: f.id})} className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${editingSub.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div><input type="date" className="flex-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-xs outline-none box-border max-w-full min-w-0" value={editingSub.startDate} onChange={e => setEditingSub({...editingSub, startDate: e.target.value})} /></div>
+                            <div className="flex gap-3"><div className="flex bg-slate-800 p-1 rounded-2xl flex-1 border border-slate-700 box-border max-w-full">{frequencies.map(f => (<button type="button" key={f.id} onClick={() => setEditingSub({...editingSub, frequency: f.id})} className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${editingSub.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div><input type="date" className="flex-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-xs outline-none box-border max-w-full min-w-0" value={editingSub.startDate} onChange={e => setEditingSub({...editingSub, startDate: e.target.value})} /></div>
                             
                             {/* Cancellation Date (Edit) */}
                             <div>
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1 flex justify-between">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1 flex justify-between items-center">
                                     <span>Cancel Date (Optional)</span>
+                                    {editingSub.cancellationDate && (
+                                        <button type="button" onClick={() => setEditingSub({...editingSub, cancellationDate: ''})} className="text-[10px] text-red-400 font-bold uppercase hover:text-red-300">Clear</button>
+                                    )}
                                 </label>
-                                <input type="date" className="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0 focus:ring-1 focus:ring-red-400 focus:border-red-400" value={editingSub.cancellationDate || ''} onChange={e => setEditingSub({...editingSub, cancellationDate: e.target.value})} />
+                                <input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0 focus:ring-1 focus:ring-red-400 focus:border-red-400" value={editingSub.cancellationDate || ''} onChange={e => setEditingSub({...editingSub, cancellationDate: e.target.value})} />
                             </div>
 
                             {/* Category Edit */}
@@ -778,7 +794,7 @@
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Category</label>
                                 <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">
                                     {categories.map(cat => (
-                                        <button key={cat.id} onClick={() => setEditingSub({...editingSub, category: cat.id})} className={`flex-shrink-0 px-3 py-2.5 rounded-xl border flex flex-col items-center gap-1 min-w-[60px] transition-all ${editingSub.category === cat.id ? 'bg-slate-700 border-yellow-400 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                                        <button type="button" key={cat.id} onClick={() => setEditingSub({...editingSub, category: cat.id})} className={`flex-shrink-0 px-3 py-2.5 rounded-xl border flex flex-col items-center gap-1 min-w-[60px] transition-all ${editingSub.category === cat.id ? 'bg-slate-700 border-yellow-400 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
                                             <Icon path={Paths[cat.icon]} size={18} /> <span className="text-[9px] font-bold">{cat.label}</span>
                                         </button>
                                     ))}
@@ -787,7 +803,7 @@
 
                             <div>
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Payment</label>
-                                <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">{paymentMethods.map(pm => (<button key={pm.id} onClick={() => setEditingSub({...editingSub, paymentMethod: pm.id === editingSub.paymentMethod ? '' : pm.id})} className={`flex-shrink-0 px-4 py-3 rounded-xl border flex flex-col items-center gap-1.5 min-w-[64px] transition-all ${editingSub.paymentMethod === pm.id ? 'bg-slate-700 border-blue-400 text-blue-400 ring-1 ring-blue-400/50' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><Icon path={Paths[pm.icon]} size={18} /><span className="text-[9px] font-bold">{pm.label}</span></button>))}</div>
+                                <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">{paymentMethods.map(pm => (<button type="button" key={pm.id} onClick={() => setEditingSub({...editingSub, paymentMethod: pm.id === editingSub.paymentMethod ? '' : pm.id})} className={`flex-shrink-0 px-4 py-3 rounded-xl border flex flex-col items-center gap-1.5 min-w-[64px] transition-all ${editingSub.paymentMethod === pm.id ? 'bg-slate-700 border-blue-400 text-blue-400 ring-1 ring-blue-400/50' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><Icon path={Paths[pm.icon]} size={18} /><span className="text-[9px] font-bold">{pm.label}</span></button>))}</div>
                                 {editingSub.paymentMethod === 'credit_card' && (
                                     <div className="grid grid-cols-2 gap-3 mt-2 box-border max-w-full">
                                         <input className="w-full p-3 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Bank Name" value={editingSub.cardBank || ''} onChange={e => setEditingSub({...editingSub, cardBank: e.target.value})} />
@@ -795,13 +811,16 @@
                                     </div>
                                 )}
                             </div>
-                            <div className="flex items-center justify-between pt-2"><label className="text-xs font-medium text-slate-400">Subscription Status</label><button onClick={() => setEditingSub({...editingSub, status: editingSub.status === 'active' ? 'cancelled' : 'active'})} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${editingSub.status === 'active' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>{editingSub.status === 'active' ? 'ACTIVE' : 'CANCELLED'}</button></div>
-                            <div className="flex gap-3 pt-4"><button onClick={() => setDeleteId(editingSub.id)} className="p-4 bg-red-500/10 text-red-400 rounded-2xl border border-red-500/20 hover:bg-red-500/20 transition"><Icon path={Paths.Trash2} size={20} /></button><button onClick={() => saveSub(editingSub)} className="flex-1 bg-yellow-400 text-slate-900 font-extrabold py-3.5 rounded-2xl hover:bg-yellow-300 transition text-sm">Update Membership</button></div>
+                            <div className="flex items-center justify-between pt-2"><label className="text-xs font-medium text-slate-400">Subscription Status</label><button type="button" onClick={() => setEditingSub({...editingSub, status: editingSub.status === 'active' ? 'cancelled' : 'active'})} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${editingSub.status === 'active' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>{editingSub.status === 'active' ? 'ACTIVE' : 'CANCELLED'}</button></div>
+                            <div className="flex gap-3 pt-4">
+                                <button type="button" onClick={() => setDeleteId(editingSub.id)} className="p-4 bg-red-500/10 text-red-400 rounded-2xl border border-red-500/20 hover:bg-red-500/20 transition"><Icon path={Paths.Trash2} size={20} /></button>
+                                <button type="button" onClick={() => saveSub(editingSub)} className="flex-1 bg-yellow-400 text-slate-900 font-extrabold py-3.5 rounded-2xl hover:bg-yellow-300 transition text-sm cursor-pointer shadow-lg shadow-yellow-400/20 active:scale-95">Update Membership</button>
+                            </div>
                         </div>
                       </div>
                     </div>
                 )}
-                {deleteId && <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"><div className="glass p-6 rounded-3xl w-full max-w-sm text-center border border-white/10 mx-auto"><h3 className="text-lg font-bold text-white mb-6">Delete Membership?</h3><div className="flex gap-3"><button onClick={() => setDeleteId(null)} className="flex-1 py-3 bg-slate-700 text-white font-bold rounded-2xl text-sm">Cancel</button><button onClick={deleteSub} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm">Delete</button></div></div></div>}
+                {deleteId && <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"><div className="glass p-6 rounded-3xl w-full max-w-sm text-center border border-white/10 mx-auto"><h3 className="text-lg font-bold text-white mb-6">Delete Membership?</h3><div className="flex gap-3"><button type="button" onClick={() => setDeleteId(null)} className="flex-1 py-3 bg-slate-700 text-white font-bold rounded-2xl text-sm">Cancel</button><button type="button" onClick={deleteSub} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm">Delete</button></div></div></div>}
                 {toastMsg && <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-yellow-400 text-slate-900 px-6 py-3 rounded-full shadow-2xl z-[70] flex items-center gap-2 animate-float font-bold text-sm shadow-yellow-400/20"><Icon path={Paths.Check} size={14} />{toastMsg}</div>}
             </div>
           );
