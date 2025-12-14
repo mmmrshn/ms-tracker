@@ -29,13 +29,18 @@
             --glass-border: rgba(255, 255, 255, 0.08);
         }
 
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* Prevent body scroll */
+            background-color: var(--fb-navy);
+        }
+
         body { 
             font-family: 'Manrope', sans-serif; 
-            background-color: var(--fb-navy);
             color: #f8fafc;
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior-y: none;
-            overflow-x: hidden;
         }
         
         /* Glassmorphism */
@@ -46,13 +51,12 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
         
-        /* UPDATED: Increased padding for safe area to prevent text overlapping on iPhone */
         .glass-panel {
-            background: rgba(15, 23, 42, 0.98); 
+            background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            padding-top: max(3.5rem, calc(env(safe-area-inset-top) + 1rem)); 
+            padding-top: max(1.5rem, env(safe-area-inset-top)); 
             padding-bottom: 1rem;
         }
 
@@ -60,6 +64,7 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .snap-y { scroll-snap-type: y mandatory; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .pt-safe { padding-top: env(safe-area-inset-top); }
         
         .btn-3d {
             transition: all 0.1s;
@@ -77,8 +82,8 @@
         input::placeholder { color: #64748b; }
     </style>
 </head>
-<body class="h-screen overflow-hidden bg-[#0f172a]">
-    <div id="root" class="h-full w-full"></div>
+<body>
+    <div id="root" class="h-full w-full overflow-hidden"></div>
 
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
@@ -134,7 +139,7 @@
 
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // --- FIREBASE CONFIG ---
+        // --- FIREBASE CONFIG (Mumi's) ---
         const firebaseConfig = {
           apiKey: "AIzaSyCbwSFzMzJuNsJFROkKTvNXLwmt7lI3m4w",
           authDomain: "ms-tracker-9bee7.firebaseapp.com",
@@ -220,7 +225,6 @@
           const diffDays = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24)); 
           return diffDays >= 0 && diffDays <= 3;
         };
-        
         const copyToClipboard = (text) => {
             const textArea = document.createElement("textarea");
             textArea.value = text;
@@ -280,10 +284,8 @@
             setMonths(ms);
           }, []);
 
-          // UPDATED: Ensure alignment and prevent half-transparency issue
           useEffect(() => {
             if (scrollRef.current && months.length > 0) {
-                 // 64px item height * 12 (index of current month)
                 scrollRef.current.scrollTop = 12 * 64; 
             }
           }, [months.length]);
@@ -302,7 +304,6 @@
               <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
               <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
               
-              {/* Highlight Box centered perfectly */}
               <div className="absolute top-1/2 left-0 right-0 h-[64px] -mt-[32px] bg-white/5 border-y border-white/5 backdrop-blur-[1px] z-0 flex items-center justify-between px-6">
                  <div className="absolute right-6 text-right">
                      <span className="text-[10px] text-yellow-400/60 font-bold uppercase tracking-widest block mb-0.5">Est. Total</span>
@@ -313,13 +314,11 @@
               <div 
                 ref={scrollRef} 
                 onScroll={handleScroll} 
-                className="w-full h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar py-[64px]" /* padding top/bottom = height of one item to allow top/bottom items to center */
+                className="w-full h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar py-[64px]"
                 style={{ scrollBehavior: 'smooth' }}
               >
                 {months.map((date, i) => {
-                  // Check if this specific month matches the selected state
                   const isSelected = selectedDate.getMonth() === date.getMonth() && selectedDate.getFullYear() === date.getFullYear();
-                  
                   return (
                     <div 
                         key={i} 
@@ -389,34 +388,40 @@
             }, [subscriptions, filterMethod, sortType, viewCurrency, exchangeRate]);
 
             return (
-                <div className="flex flex-col h-full bg-[#0f172a]"> 
-                    <div className="glass-panel px-6 flex justify-between items-center z-10 sticky top-0">
-                        <div className="pt-2"> 
-                            <h1 className="font-bold text-lg text-white">Mumi's Tracker</h1>
-                            <div className="text-[11px] text-slate-400 font-medium">{activeCount} Active • 1$ = {exchangeRate.toFixed(1)}₺</div>
+                <div className="flex flex-col h-full bg-[#0f172a] overflow-hidden w-full"> 
+                    <div className="glass-panel px-5 py-3 flex justify-between items-center z-10 sticky top-0 w-full box-border">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center text-[#002d72] font-bold shadow-lg shrink-0">
+                                <Icons.TrendingUp size={18} />
+                            </div>
+                            <div className="min-w-0">
+                                <h1 className="font-bold text-base leading-tight text-white truncate">Mumi's Tracker</h1>
+                                <div className="text-[10px] text-blue-200 truncate">{activeCount} Active • 1$ = {exchangeRate.toFixed(1)}₺</div>
+                            </div>
                         </div>
-                        <div className="pt-2">
-                            <button onClick={() => setFilterOpen(!filterOpen)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${filterOpen ? 'bg-yellow-400 text-slate-900' : 'bg-white/5 text-slate-300 border border-white/10'}`}>
+                        <div className="flex gap-2 shrink-0">
+                            <button onClick={() => setFilterOpen(!filterOpen)} className={`p-1.5 rounded-full transition ${filterOpen ? 'bg-yellow-400 text-[#002d72]' : 'bg-white/10 hover:bg-white/20'}`}>
                                 <Icons.Filter size={18} />
                             </button>
                         </div>
                     </div>
+                    
                     {filterOpen && (
                         <div className="bg-[#1e293b] border-b border-white/5 p-4 animate-in slide-in-from-top-2 z-0">
-                            <div className="mb-4">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-2">Sort</label>
+                            <div className="mb-3">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Sort By</label>
                                 <div className="flex gap-2">
-                                    {[{id:'cost-high', l:'High Price'}, {id:'cost-low', l:'Low Price'}, {id:'name', l:'A-Z'}].map(o => (
-                                        <button key={o.id} onClick={() => setSortType(o.id)} className={`px-4 py-1.5 text-xs font-bold rounded-full border transition-all ${sortType === o.id ? 'bg-yellow-400 text-slate-900 border-yellow-400' : 'bg-transparent text-slate-400 border-slate-600'}`}>{o.l}</button>
+                                    {[{id:'cost-high', l:'$$$'}, {id:'cost-low', l:'$'}, {id:'name', l:'A-Z'}].map(o => (
+                                        <button key={o.id} onClick={() => setSortType(o.id)} className={`px-3 py-1 text-xs rounded-full border ${sortType === o.id ? 'bg-[#002d72] text-white border-[#002d72]' : 'bg-white text-gray-500 border-gray-200'}`}>{o.l}</button>
                                     ))}
                                 </div>
                             </div>
                             <div>
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-2">Filter Payment</label>
-                                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                                    <button onClick={() => setFilterMethod('all')} className={`flex-shrink-0 px-4 py-1.5 text-xs font-bold rounded-full border ${filterMethod === 'all' ? 'bg-yellow-400 text-slate-900 border-yellow-400' : 'bg-transparent text-slate-400 border-slate-600'}`}>All</button>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Filter Payment</label>
+                                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar box-border max-w-full">
+                                    <button onClick={() => setFilterMethod('all')} className={`flex-shrink-0 px-3 py-1 text-xs rounded-full border ${filterMethod === 'all' ? 'bg-[#002d72] text-white border-[#002d72]' : 'bg-white text-gray-500 border-gray-200'}`}>All</button>
                                     {paymentMethods.map(pm => (
-                                        <button key={pm.id} onClick={() => setFilterMethod(pm.id)} className={`flex-shrink-0 px-4 py-1.5 text-xs font-bold rounded-full border flex items-center gap-1.5 ${filterMethod === pm.id ? 'bg-yellow-400 text-slate-900 border-yellow-400' : 'bg-transparent text-slate-400 border-slate-600'}`}>
+                                        <button key={pm.id} onClick={() => setFilterMethod(pm.id)} className={`flex-shrink-0 px-3 py-1 text-xs rounded-full border flex items-center gap-1 ${filterMethod === pm.id ? 'bg-[#002d72] text-white border-[#002d72]' : 'bg-white text-gray-500 border-gray-200'}`}>
                                             <pm.icon size={14} /> {pm.label}
                                         </button>
                                     ))}
@@ -424,40 +429,44 @@
                             </div>
                         </div>
                     )}
+
                     <TimeWheel selectedDate={selectedDate} onChange={setSelectedDate} totalCost={calculatedTotal} />
-                    <div className="flex-1 overflow-y-auto p-4 pb-28">
-                        {loading ? <div className="space-y-3"><SkeletonCard/><SkeletonCard/><SkeletonCard/></div> : 
+                    
+                    <div className="flex-1 overflow-y-auto p-4 pb-28 w-full box-border">
+                        {loading ? <div className="flex justify-center pt-20"><Icons.RefreshCw className="animate-spin text-[#002d72]" size={24} /></div> : 
                          processedSubs.length === 0 ? <div className="text-center pt-24 opacity-40"><div className="mx-auto w-16 h-16 text-slate-600 flex justify-center mb-4"><Icons.CreditCard size={64} /></div><p className="text-sm font-medium text-slate-400">No memberships found.</p></div> : (
-                          <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                          <div className="grid gap-2.5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                             {processedSubs.map(sub => {
                               const displayCost = convertToViewCurrency(sub.cost, sub.currency);
                               const isActive = sub.status === 'active';
                               const approaching = isActive && isApproaching(sub.startDate, sub.frequency, sub.cancellationDate);
                               const CatData = categories.find(c => c.id === sub.category) || categories[5];
                               const PayData = paymentMethods.find(p => p.id === sub.paymentMethod);
-                              let payText = PayData ? PayData.label : '';
-                              if (sub.paymentMethod === 'credit_card' && sub.cardBank) payText = `${sub.cardBank} ${sub.cardLast4 ? '• '+sub.cardLast4 : ''}`;
                               
-                              // Handle Cancelled Visuals
+                              let payText = PayData ? PayData.label : '';
+                              if (sub.paymentMethod === 'credit_card' && sub.cardBank) {
+                                  payText = `${sub.cardBank} ${sub.cardLast4 ? '• '+sub.cardLast4 : ''}`;
+                              }
+                              
                               const isCancelled = sub.status === 'cancelled' || (sub.cancellationDate && new Date(sub.cancellationDate) < new Date());
 
                               return (
-                                <div key={sub.id} onClick={() => openEdit(sub)} className={`relative glass rounded-2xl p-4 transition active:scale-[0.98] ${approaching ? 'border-yellow-400/50 ring-1 ring-yellow-400/20' : ''} ${isCancelled ? 'opacity-50 grayscale' : ''}`}>
-                                  {approaching && !isCancelled && <div className="absolute top-0 right-0 bg-yellow-400 text-slate-900 text-[9px] font-extrabold px-2 py-1 rounded-bl-xl rounded-tr-xl z-10 flex items-center gap-1">SOON</div>}
-                                  <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-3.5">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-slate-900 shadow-lg font-bold`} style={{backgroundColor: isActive ? CatData.color : '#475569'}}><CatData.icon size={18} /></div>
-                                        <div>
-                                            <h3 className="font-bold text-white text-[15px] leading-tight mb-1">{sub.name}</h3>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-slate-300 capitalize font-medium">{sub.frequency}</span>
-                                                {PayData && <span className="text-[10px] bg-blue-500/20 px-1.5 py-0.5 rounded text-blue-200 flex items-center gap-1 border border-blue-500/20"><PayData.icon size={10} /> {payText}</span>}
+                                <div key={sub.id} onClick={() => openEdit(sub)} className={`relative group bg-white rounded-xl p-3.5 shadow-sm border transition active:scale-[0.98] cursor-pointer overflow-hidden ${approaching ? 'border-yellow-400 ring-2 ring-yellow-400/20' : 'border-gray-100'} ${isCancelled ? 'opacity-50 grayscale' : ''}`}>
+                                  {approaching && !isCancelled && <div className="absolute top-0 right-0 bg-yellow-400 text-[#002d72] text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg z-10 flex items-center gap-1"><Icons.AlertCircle size={8} /> SOON</div>}
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-base font-bold text-white shadow-sm shrink-0`} style={{backgroundColor: CatData.color}}><CatData.icon size={16} /></div>
+                                        <div className="min-w-0">
+                                            <h3 className="font-bold text-gray-800 text-sm leading-none mb-1 truncate">{sub.name}</h3>
+                                            <div className="flex flex-wrap gap-1">
+                                                <span className="text-[9px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 capitalize">{sub.frequency}</span>
+                                                {PayData && <span className="text-[9px] bg-blue-50 px-1.5 py-0.5 rounded text-[#002d72] flex items-center gap-0.5 truncate"><PayData.icon size={10} /> {payText}</span>}
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">a
-                                        <div className="font-bold text-lg text-white tracking-tight">{formatMoney(displayCost, viewCurrency)}</div>
-                                        <div className={`text-[10px] font-bold ${approaching && !isCancelled ? 'text-yellow-400' : 'text-slate-500'}`}>{new Date(sub.startDate).getDate()}{['st','nd','rd'][((new Date(sub.startDate).getDate()+90)%100-10)%10-1]||'th'}</div>
+                                    <div className="text-right shrink-0">
+                                        <div className="font-bold text-sm text-[#002d72]">{formatMoney(displayCost, viewCurrency)}</div>
+                                        <div className={`text-[9px] ${approaching ? 'text-yellow-600 font-bold' : 'text-gray-400'}`}>{new Date(sub.startDate).getDate()}{['st','nd','rd'][((new Date(sub.startDate).getDate()+90)%100-10)%10-1]||'th'}</div>
                                     </div>
                                   </div>
                                 </div>
@@ -491,21 +500,26 @@
 
             return (
                 <div className="flex flex-col h-full bg-[#0f172a]">
-                    <div className="glass-panel px-6 py-4"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icons.PieChart size={20} className="text-yellow-400"/> Analysis</h1></div>
-                    <div className="flex-1 overflow-y-auto p-6 pb-28">
+                    <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icons.PieChart size={20} className="text-yellow-400"/> Analysis</h1></div>
+                    <div className="flex-1 overflow-y-auto p-6 pb-28 w-full box-border">
                         <div className="glass p-8 rounded-3xl mb-6 flex flex-col items-center">
                             <h2 className="text-xs font-bold text-slate-400 uppercase text-center mb-6 tracking-widest">Monthly Spend ({viewCurrency})</h2>
                             <DonutChart data={chartData.data} total={chartData.total} />
                         </div>
                         <div className="space-y-3">
-                            <h3 className="text-xs font-bold text-slate-500 uppercase ml-1 mb-2">Breakdown</h3>
+                            <h3 className="text-xs font-bold text-slate-500 uppercase ml-1">Categories</h3>
                             {chartData.data.map(cat => (
-                                <div key={cat.id} className="glass p-3.5 rounded-2xl flex items-center justify-between">
+                                <div key={cat.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-slate-900 font-bold" style={{backgroundColor: cat.color}}><cat.icon size={16} /></div>
-                                        <div><div className="text-sm font-bold text-white">{cat.label}</div><div className="text-[10px] text-slate-400 font-mono">{((cat.value / chartData.total) * 100).toFixed(1)}%</div></div>
+                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{backgroundColor: cat.color}}>
+                                            <cat.icon size={16} />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-bold text-gray-800">{cat.label}</div>
+                                            <div className="text-[10px] text-gray-400">{((cat.value / chartData.total) * 100).toFixed(1)}%</div>
+                                        </div>
                                     </div>
-                                    <div className="font-bold text-white">{formatMoney(cat.value, viewCurrency)}</div>
+                                    <div className="font-bold text-[#002d72]">{formatMoney(cat.value, viewCurrency)}</div>
                                 </div>
                             ))}
                         </div>
@@ -518,19 +532,24 @@
             const [localData, setLocalData] = useState({ 
                 name: '', cost: '', currency: 'TRY', frequency: 'monthly', 
                 startDate: new Date().toISOString().split('T')[0], category: 'general', 
-                paymentMethod: '', cardBank: '', cardLast4: '', cancellationDate: ''
+                paymentMethod: '', cardBank: '', cardLast4: '', cancellationDate: '' 
             });
             const [smartInput, setSmartInput] = useState('');
-            const handleSmart = async () => { if(!smartInput) return; const res = await smartFill(smartInput); if(res) setLocalData({ ...localData, ...res }); };
+
+            const handleSmart = async () => {
+                if(!smartInput) return;
+                const res = await smartFill(smartInput);
+                if(res) setLocalData({ ...localData, ...res });
+            };
 
             return (
                 <div className="flex flex-col h-full bg-[#0f172a]">
-                    <div className="glass-panel px-6 py-4"><h1 className="font-bold text-lg text-white">Add Membership</h1></div>
-                    <div className="flex-1 overflow-y-auto p-5 pb-28">
+                    <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white">Add Membership</h1></div>
+                    <div className="flex-1 overflow-y-auto p-5 pb-28 w-full box-border">
                         <div className="bg-gradient-to-br from-blue-900/40 to-slate-900/40 border border-blue-500/20 p-4 rounded-2xl mb-6">
                             <label className="text-[10px] font-bold text-blue-300 flex items-center gap-1.5 mb-2"><Icons.Sparkles size={12} className="text-yellow-500"/> AI SMART FILL</label>
                             <div className="flex gap-2 items-center">
-                                <input className="flex-1 p-3 text-xs bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-yellow-400 placeholder:text-slate-600 max-w-full" placeholder="e.g. Netflix 200 lira card garanti" value={smartInput} onChange={e => setSmartInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSmart()} />
+                                <input className="flex-1 p-3 text-xs bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-yellow-400 placeholder:text-slate-600 max-w-full min-w-0" placeholder="e.g. Netflix 200 lira card garanti" value={smartInput} onChange={e => setSmartInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSmart()} />
                                 <button onClick={handleSmart} disabled={isSmartLoading} className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-xl disabled:opacity-50 flex-shrink-0 shadow-lg shadow-blue-900/50">
                                     {isSmartLoading ? <Icons.RefreshCw size={16} className="animate-spin" /> : <Icons.Sparkles size={16} />}
                                 </button>
@@ -538,21 +557,20 @@
                         </div>
 
                         <div className="space-y-4">
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Name</label><input className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition-all box-border max-w-full" placeholder="Netflix..." value={localData.name} onChange={e => setLocalData({...localData, name: e.target.value, category: detectCategory(e.target.value)})} /></div>
+                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Name</label><input className="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition-all box-border max-w-full min-w-0" placeholder="Netflix..." value={localData.name} onChange={e => setLocalData({...localData, name: e.target.value, category: detectCategory(e.target.value)})} /></div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Cost</label><input type="number" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full" placeholder="0.00" value={localData.cost} onChange={e => setLocalData({...localData, cost: e.target.value})} /></div>
-                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Currency</label><select className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full" value={localData.currency} onChange={e => setLocalData({...localData, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Cost</label><input type="number" className="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" placeholder="0.00" value={localData.cost} onChange={e => setLocalData({...localData, cost: e.target.value})} /></div>
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Currency</label><select className="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={localData.currency} onChange={e => setLocalData({...localData, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
                             </div>
                             <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Frequency</label><div className="flex bg-slate-800 p-1 rounded-2xl mt-1 border border-slate-700 box-border max-w-full">{frequencies.map(f => (<button key={f.id} onClick={() => setLocalData({...localData, frequency: f.id})} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${localData.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div></div>
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Start Date</label><input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full" value={localData.startDate} onChange={e => setLocalData({...localData, startDate: e.target.value})} /></div>
+                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Start Date</label><input type="date" className="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={localData.startDate} onChange={e => setLocalData({...localData, startDate: e.target.value})} /></div>
                             
-                            {/* Cancellation Date (Optional) */}
                             <div>
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1 flex justify-between">
                                     <span>Cancel Date (Optional)</span>
-                                    <span className="text-slate-600 normal-case font-normal text-[9px]">Auto-stop billing after this</span>
+                                    <span className="text-slate-600 normal-case font-normal text-[9px]">Auto-stop billing</span>
                                 </label>
-                                <input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full focus:ring-1 focus:ring-red-400 focus:border-red-400" value={localData.cancellationDate || ''} onChange={e => setLocalData({...localData, cancellationDate: e.target.value})} />
+                                <input type="date" className="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0 focus:ring-1 focus:ring-red-400 focus:border-red-400" value={localData.cancellationDate || ''} onChange={e => setLocalData({...localData, cancellationDate: e.target.value})} />
                             </div>
 
                             {/* Category Selector */}
@@ -578,8 +596,8 @@
                                 </div>
                                 {localData.paymentMethod === 'credit_card' && (
                                     <div className="grid grid-cols-2 gap-3 mt-2 animate-in slide-in-from-top-1 box-border max-w-full">
-                                        <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none" placeholder="Bank Name (e.g. Garanti)" value={localData.cardBank} onChange={e => setLocalData({...localData, cardBank: e.target.value})} />
-                                        <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none" placeholder="Last 4 Digits" maxLength={4} value={localData.cardLast4} onChange={e => setLocalData({...localData, cardLast4: e.target.value})} />
+                                        <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Bank Name" value={localData.cardBank} onChange={e => setLocalData({...localData, cardBank: e.target.value})} />
+                                        <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Last 4" maxLength={4} value={localData.cardLast4} onChange={e => setLocalData({...localData, cardLast4: e.target.value})} />
                                     </div>
                                 )}
                             </div>
@@ -599,8 +617,8 @@
             const run = async () => { setLoading(true); const res = await onGenerate(subscriptions); setOutput(res); setLoading(false); };
             return (
                 <div className="flex flex-col h-full bg-[#0f172a]">
-                    <div className="glass-panel px-6 py-4"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icons.Sparkles size={20} className="text-yellow-400"/> AI Advisor</h1></div>
-                    <div className="flex-1 overflow-y-auto p-6 pb-28 flex flex-col items-center">
+                    <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icons.Sparkles size={20} className="text-yellow-400"/> AI Advisor</h1></div>
+                    <div className="flex-1 overflow-y-auto p-6 pb-28 flex flex-col items-center w-full box-border">
                         {!output && !loading && (
                             <div className="text-center mt-12">
                                 <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-700"><Icons.Sparkles size={40} className="text-yellow-400" /></div>
@@ -623,8 +641,8 @@
 
         const SettingsView = ({ exchangeRate, setExchangeRate, accessKey, onLogout, viewCurrency, setViewCurrency }) => (
             <div className="flex flex-col h-full bg-[#0f172a]">
-                <div className="glass-panel px-6 py-4"><h1 className="font-bold text-lg text-white">Settings</h1></div>
-                <div className="flex-1 overflow-y-auto p-5 pb-28 space-y-5">
+                <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white">Settings</h1></div>
+                <div className="flex-1 overflow-y-auto p-5 pb-28 space-y-5 w-full box-border">
                     <div className="glass p-5 rounded-2xl">
                         <label className="text-[10px] font-bold text-slate-500 uppercase mb-3 block">Display Currency</label>
                         <div className="flex bg-slate-800 p-1 rounded-xl">
@@ -633,7 +651,7 @@
                     </div>
                     <div className="glass p-5 rounded-2xl">
                         <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Exchange Rate (1 USD)</label>
-                        <input type="number" value={exchangeRate} onChange={(e) => setExchangeRate(parseFloat(e.target.value))} className="w-full p-2.5 bg-slate-800 rounded-lg border-none text-white text-sm font-mono focus:border-yellow-400 outline-none" />
+                        <input type="number" value={exchangeRate} onChange={(e) => setExchangeRate(parseFloat(e.target.value))} className="w-full p-2.5 bg-slate-800 rounded-lg border-none text-white text-sm font-mono focus:border-yellow-400 outline-none min-w-0" />
                     </div>
                     <div className="glass p-5 rounded-2xl">
                         <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Secret Key</label>
@@ -767,19 +785,19 @@
                 {editingSub && (
                     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
                       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto transition-opacity" onClick={() => setEditingSub(null)}></div>
-                      <div className="bg-[#1e293b] w-full max-w-md rounded-t-3xl p-6 shadow-2xl pointer-events-auto transform transition-transform duration-300 animate-in slide-in-from-bottom-10 h-auto max-h-[85vh] overflow-y-auto border-t border-white/10 pb-12">
+                      <div className="bg-[#1e293b] w-full max-w-md rounded-t-3xl p-6 shadow-2xl pointer-events-auto transform transition-transform duration-300 animate-in slide-in-from-bottom-10 h-auto max-h-[85vh] overflow-y-auto border-t border-white/10 pb-12 box-border">
                         <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-white">Edit Membership</h2><button onClick={() => setEditingSub(null)} className="p-2 bg-slate-800 rounded-full text-slate-400"><Icons.X size={18} /></button></div>
                         <div className="space-y-4">
-                            <input className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:border-yellow-400 outline-none box-border max-w-full" value={editingSub.name} onChange={e => setEditingSub({...editingSub, name: e.target.value})} />
-                            <div className="grid grid-cols-2 gap-3"><input type="number" className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full" value={editingSub.cost} onChange={e => setEditingSub({...editingSub, cost: e.target.value})} /><select className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full" value={editingSub.currency} onChange={e => setEditingSub({...editingSub, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
-                            <div className="flex gap-3"><div className="flex bg-slate-800 p-1 rounded-2xl flex-1 border border-slate-700">{frequencies.map(f => (<button key={f.id} onClick={() => setEditingSub({...editingSub, frequency: f.id})} className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${editingSub.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div><input type="date" className="flex-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-xs outline-none box-border max-w-full" value={editingSub.startDate} onChange={e => setEditingSub({...editingSub, startDate: e.target.value})} /></div>
+                            <input className="w-full p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:border-yellow-400 outline-none box-border max-w-full min-w-0" value={editingSub.name} onChange={e => setEditingSub({...editingSub, name: e.target.value})} />
+                            <div className="grid grid-cols-2 gap-3"><input type="number" className="w-full p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={editingSub.cost} onChange={e => setEditingSub({...editingSub, cost: e.target.value})} /><select className="w-full p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={editingSub.currency} onChange={e => setEditingSub({...editingSub, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
+                            <div className="flex gap-3"><div className="flex bg-slate-800 p-1 rounded-2xl flex-1 border border-slate-700 box-border max-w-full">{frequencies.map(f => (<button key={f.id} onClick={() => setEditingSub({...editingSub, frequency: f.id})} className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${editingSub.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div><input type="date" className="flex-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-xs outline-none box-border max-w-full min-w-0" value={editingSub.startDate} onChange={e => setEditingSub({...editingSub, startDate: e.target.value})} /></div>
                             
                             {/* Cancellation Date (Edit) */}
                             <div>
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1 flex justify-between">
                                     <span>Cancel Date (Optional)</span>
                                 </label>
-                                <input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full focus:ring-1 focus:ring-red-400 focus:border-red-400" value={editingSub.cancellationDate || ''} onChange={e => setEditingSub({...editingSub, cancellationDate: e.target.value})} />
+                                <input type="date" className="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0 focus:ring-1 focus:ring-red-400 focus:border-red-400" value={editingSub.cancellationDate || ''} onChange={e => setEditingSub({...editingSub, cancellationDate: e.target.value})} />
                             </div>
 
                             {/* Category Edit */}
@@ -787,7 +805,7 @@
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Category</label>
                                 <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">
                                     {categories.map(cat => (
-                                        <button key={cat.id} onClick={() => setEditingSub({...editingSub, category: cat.id})} className={`flex-shrink-0 px-3 py-2.5 rounded-xl border flex flex-col items-center gap-1 min-w-[64px] transition-all ${editingSub.category === cat.id ? 'bg-slate-700 border-yellow-400 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                                        <button key={cat.id} onClick={() => setEditingSub({...editingSub, category: cat.id})} className={`flex-shrink-0 px-3 py-2.5 rounded-xl border flex flex-col items-center gap-1 min-w-[60px] transition-all ${editingSub.category === cat.id ? 'bg-slate-700 border-yellow-400 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
                                             <cat.icon size={18} /> <span className="text-[9px] font-bold">{cat.label}</span>
                                         </button>
                                     ))}
@@ -799,8 +817,8 @@
                                 <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">{paymentMethods.map(pm => (<button key={pm.id} onClick={() => setEditingSub({...editingSub, paymentMethod: pm.id === editingSub.paymentMethod ? '' : pm.id})} className={`flex-shrink-0 px-4 py-3 rounded-xl border flex flex-col items-center gap-1.5 min-w-[64px] transition-all ${editingSub.paymentMethod === pm.id ? 'bg-slate-700 border-blue-400 text-blue-400 ring-1 ring-blue-400/50' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><pm.icon size={18} /><span className="text-[9px] font-bold">{pm.label}</span></button>))}</div>
                                 {editingSub.paymentMethod === 'credit_card' && (
                                     <div className="grid grid-cols-2 gap-3 mt-2 box-border max-w-full">
-                                        <input className="w-full p-3 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none" placeholder="Bank Name" value={editingSub.cardBank || ''} onChange={e => setEditingSub({...editingSub, cardBank: e.target.value})} />
-                                        <input className="w-full p-3 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none" placeholder="Last 4" maxLength={4} value={editingSub.cardLast4 || ''} onChange={e => setEditingSub({...editingSub, cardLast4: e.target.value})} />
+                                        <input className="w-full p-3 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Bank Name" value={editingSub.cardBank || ''} onChange={e => setEditingSub({...editingSub, cardBank: e.target.value})} />
+                                        <input className="w-full p-3 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Last 4" maxLength={4} value={editingSub.cardLast4 || ''} onChange={e => setEditingSub({...editingSub, cardLast4: e.target.value})} />
                                     </div>
                                 )}
                             </div>
