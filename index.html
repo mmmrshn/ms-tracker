@@ -52,14 +52,14 @@
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            /* Massive padding for iPhone Notch/Island */
-            padding-top: max(3.5rem, calc(env(safe-area-inset-top) + 1rem)); 
+            /* CRITICAL FIX: Ensure padding is generous for notch/status bar */
+            padding-top: max(4rem, calc(env(safe-area-inset-top) + 1.5rem)); 
             padding-bottom: 1rem;
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
+        .snap-y { scroll-snap-type: y mandatory; }
         .pb-safe { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
         
         .btn-3d {
@@ -72,16 +72,20 @@
             box-shadow: 0px 0px 0px 0px #ca8a04;
         }
 
-        /* Input Resets */
+        /* Input Resets & Responsiveness */
         input, select { 
             color-scheme: dark; 
             appearance: none; -webkit-appearance: none; 
+            min-width: 0; /* Prevents input stretching parent */
+            box-sizing: border-box; /* Ensures padding/border is inside width */
         }
         input::placeholder { color: #64748b; }
         
-        /* Fix for date inputs on iOS to prevent overflow */
-        input[type="date"] {
-            min-width: 95%; /* Prevent pushing container width */
+        /* Ensure responsive grid items don't push outside */
+        .grid-item-fill {
+             width: 100%;
+             min-width: 0;
+             box-sizing: border-box;
         }
     </style>
 </head>
@@ -91,11 +95,23 @@
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
         import { getFirestore, collection, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
         // --- ICONS ---
         const Icon = ({ path, size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className}`} style={{ minWidth: size, minHeight: size }}>
+            <svg 
+                xmlns="http://www.w3.org/2000/svg"
+                width={size} 
+                height={size} 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                className={`shrink-0 ${className}`}
+                style={{ width: `${size}px`, height: `${size}px`, minWidth: `${size}px`, minHeight: `${size}px` }}
+            >
                 {path}
             </svg>
         );
@@ -304,7 +320,7 @@
                   return (
                     <div 
                         key={i} 
-                        className={`h-[64px] w-full flex items-center px-6 snap-center transition-all duration-200 ${isSelected ? 'opacity-100 pl-4 scale-105' : 'opacity-30 scale-95 blur-[0.5px]'}`}
+                        className={`h-[64px] w-full flex iatems-center px-6 snap-center transition-all duration-200 ${isSelected ? 'opacity-100 pl-4 scale-105' : 'opacity-30 scale-95 blur-[0.5px]'}`}
                     >
                       <div className="text-left">
                         <div className={`font-bold text-xl ${isSelected ? 'text-white' : 'text-slate-300'}`}>{date.toLocaleString('default', { month: 'long' })}</div>
@@ -515,26 +531,28 @@
                             <div className="flex gap-2 items-center">
                                 <input className="flex-1 p-3 text-xs bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-yellow-400 placeholder:text-slate-600 max-w-full min-w-0" placeholder="e.g. Netflix 200 lira card garanti" value={smartInput} onChange={e => setSmartInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSmart()} />
                                 <button onClick={handleSmart} disabled={isSmartLoading} className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-xl disabled:opacity-50 flex-shrink-0 shadow-lg shadow-blue-900/50">
-                                    {isSmartLoading ? <Icon path={Paths.RefreshCw} size={16} className="animate-spin" /> : <Icon path={Paths.Sparkles} size={16} />}
+                                    <Icon path={Paths.RefreshCw} size={16} className={isSmartLoading ? "animate-spin" : ""} />
                                 </button>
                             </div>
                         </div>
 
                         <div className="space-y-4">
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Name</label><input className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition-all box-border max-w-full min-w-0" placeholder="Netflix..." value={localData.name} onChange={e => setLocalData({...localData, name: e.target.value, category: detectCategory(e.target.value)})} /></div>
+                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Name</label><input className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition-all grid-item-fill" placeholder="Netflix..." value={localData.name} onChange={e => setLocalData({...localData, name: e.target.value, category: detectCategory(e.target.value)})} /></div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Cost</label><input type="number" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" placeholder="0.00" value={localData.cost} onChange={e => setLocalData({...localData, cost: e.target.value})} /></div>
-                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Currency</label><select className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={localData.currency} onChange={e => setLocalData({...localData, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Cost</label><input type="number" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none grid-item-fill" placeholder="0.00" value={localData.cost} onChange={e => setLocalData({...localData, cost: e.target.value})} /></div>
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Currency</label><select className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none grid-item-fill" value={localData.currency} onChange={e => setLocalData({...localData, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
                             </div>
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Frequency</label><div className="flex bg-slate-800 p-1 rounded-2xl mt-1 border border-slate-700 box-border max-w-full">{frequencies.map(f => (<button key={f.id} onClick={() => setLocalData({...localData, frequency: f.id})} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${localData.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div></div>
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Start Date</label><input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={localData.startDate} onChange={e => setLocalData({...localData, startDate: e.target.value})} /></div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Frequency</label><div className="flex bg-slate-800 p-1 rounded-2xl mt-1 border border-slate-700 grid-item-fill">{frequencies.map(f => (<button type="button" key={f.id} onClick={() => setLocalData({...localData, frequency: f.id})} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${localData.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div></div>
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Start Date</label><input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none grid-item-fill" value={localData.startDate} onChange={e => setLocalData({...localData, startDate: e.target.value})} /></div>
+                            </div>
                             
                             {/* Cancellation Date (Optional) */}
                             <div>
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1 flex justify-between items-center">
                                     <span>Cancel Date (Optional)</span>
                                     {localData.cancellationDate && (
-                                        <button onClick={() => setLocalData({...localData, cancellationDate: ''})} className="text-[10px] text-red-400 font-bold uppercase hover:text-red-300">Clear</button>
+                                        <button type="button" onClick={() => setLocalData({...localData, cancellationDate: ''})} className="text-[10px] text-red-400 font-bold uppercase hover:text-red-300">Clear</button>
                                     )}
                                 </label>
                                 <div className="relative">
@@ -565,8 +583,8 @@
                                 </div>
                                 {localData.paymentMethod === 'credit_card' && (
                                     <div className="grid grid-cols-2 gap-3 mt-2 animate-in slide-in-from-top-1 box-border max-w-full">
-                                        <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Bank Name" value={localData.cardBank} onChange={e => setLocalData({...localData, cardBank: e.target.value})} />
-                                        <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Last 4" maxLength={4} value={localData.cardLast4} onChange={e => setLocalData({...localData, cardLast4: e.target.value})} />
+                                        <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Bank Name (e.g. Garanti)" value={localData.cardBank} onChange={e => setLocalData({...localData, cardBank: e.target.value})} />
+                                        <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Last 4 Digits" maxLength={4} value={localData.cardLast4} onChange={e => setLocalData({...localData, cardLast4: e.target.value})} />
                                     </div>
                                 )}
                             </div>
@@ -611,7 +629,7 @@
         const SettingsView = ({ exchangeRate, setExchangeRate, accessKey, onLogout, viewCurrency, setViewCurrency }) => (
             <div className="flex flex-col h-full bg-[#0f172a]">
                 <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white">Settings</h1></div>
-                <div className="flex-1 overflow-y-auto p-5 pb-28 space-y-5 w-full box-border">
+                <div className="flex-1 overflow-y-auto p-5 pb-28 space-y-6 w-full box-border">
                     <div className="glass p-5 rounded-2xl">
                         <label className="text-[10px] font-bold text-slate-500 uppercase mb-3 block">Display Currency</label>
                         <div className="flex bg-slate-800 p-1 rounded-xl">
@@ -707,16 +725,13 @@
              const newSub = { id: editingSub ? editingSub.id : crypto.randomUUID(), ...data, cost: parseFloat(data.cost) };
              const newSubs = editingSub ? subscriptions.map(s => s.id === editingSub.id ? newSub : s) : [...subscriptions, newSub];
              
-             // Optimistic update first!
              setSubscriptions(newSubs); 
              if(editingSub) setEditingSub(null); else setActiveTab('home');
              showToast(editingSub ? "Updated!" : "Added!");
 
-             // Background sync
              try {
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_subscriptions', accessKey), { items: newSubs }, { merge: true });
              } catch(e) {
-                // Could revert here if needed, but for simplicity let's keep UI responsive
                 console.error("Save failed", e);
              }
           };
@@ -725,7 +740,7 @@
              if(!deleteId) return;
              const newSubs = subscriptions.filter(s => s.id !== deleteId);
              
-             setSubscriptions(newSubs); // Optimistic
+             setSubscriptions(newSubs); 
              setDeleteId(null); 
              setEditingSub(null);
 
@@ -766,7 +781,7 @@
 
                 {/* Edit Modal (Sheet) */}
                 {editingSub && (
-                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-auto" style={{zIndex: 9999}}> {/* High Z-Index ensuring top layer */}
+                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-auto" style={{zIndex: 9999}}>
                       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setEditingSub(null)}></div>
                       <div className="bg-[#1e293b] w-full max-w-md rounded-t-3xl p-6 shadow-2xl transform transition-transform duration-300 animate-in slide-in-from-bottom-10 h-auto max-h-[85vh] overflow-y-auto border-t border-white/10 pb-12 box-border mx-auto relative z-10">
                         <div className="flex justify-between items-center mb-6">
@@ -776,7 +791,7 @@
                         <div className="space-y-4">
                             <input className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:border-yellow-400 outline-none box-border max-w-full min-w-0" value={editingSub.name} onChange={e => setEditingSub({...editingSub, name: e.target.value})} />
                             <div className="grid grid-cols-2 gap-3"><input type="number" className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={editingSub.cost} onChange={e => setEditingSub({...editingSub, cost: e.target.value})} /><select className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={editingSub.currency} onChange={e => setEditingSub({...editingSub, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
-                            <div className="flex gap-3"><div className="flex bg-slate-800 p-1 rounded-2xl flex-1 border border-slate-700 box-border max-w-full">{frequencies.map(f => (<button type="button" key={f.id} onClick={() => setEditingSub({...editingSub, frequency: f.id})} className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${editingSub.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div><input type="date" className="flex-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-xs outline-none box-border max-w-full min-w-0" value={editingSub.startDate} onChange={e => setEditingSub({...editingSub, startDate: e.target.value})} /></div>
+                            <div className="flex gap-3"><div className="flex bg-slate-800 p-1 rounded-2xl flex-1 border border-slate-700 box-border max-w-full">{frequencies.map(f => (<button type="button" key={f.id} onClick={() => setEditingSub({...editingSub, frequency: f.id})} className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${editingSub.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div><input type="date" className="flex-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-xs outline-none box-border max-w-full min-w-0" value={editingSub.startDate} onChange={e => setEditingSub({...editingSub, startDate: e.target.value})} /></div>
                             
                             {/* Cancellation Date (Edit) */}
                             <div>
@@ -794,7 +809,7 @@
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Category</label>
                                 <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">
                                     {categories.map(cat => (
-                                        <button type="button" key={cat.id} onClick={() => setEditingSub({...editingSub, category: cat.id})} className={`flex-shrink-0 px-3 py-2.5 rounded-xl border flex flex-col items-center gap-1 min-w-[60px] transition-all ${editingSub.category === cat.id ? 'bg-slate-700 border-yellow-400 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                                        <button type="button" key={cat.id} onClick={() => setEditingSub({...editingSub, category: cat.id})} className={`flex-shrink-0 px-3 py-2.5 rounded-xl border flex flex-col items-center gap-1 min-w-[64px] transition-all ${editingSub.category === cat.id ? 'bg-slate-700 border-yellow-400 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
                                             <Icon path={Paths[cat.icon]} size={18} /> <span className="text-[9px] font-bold">{cat.label}</span>
                                         </button>
                                     ))}
