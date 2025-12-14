@@ -233,7 +233,8 @@
         const DEFAULT_RATE = 42.58; 
         // UPDATED: Added 'two_years' frequency
         const frequencies = [{ id: 'monthly', label: 'Monthly' }, { id: 'yearly', label: 'Yearly' }, { id: 'two_years', label: '2 Years' }];
-        const currencies = [{ id: 'USD', symbol: '$' }, { id: 'TRY', symbol: '₺' }];
+        // UPDATED: Added Chinese Yuan (CNY)
+        const currencies = [{ id: 'USD', symbol: '$' }, { id: 'TRY', symbol: '₺' }, { id: 'CNY', symbol: '¥' }];
         
         const paymentMethods = [
             { id: 'credit_card', label: 'Card', icon: 'CreditCard' },
@@ -403,7 +404,7 @@
                     <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
                     <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
                     
-                    {/* UPDATED: Aligned total cost to the left within the central bar */}
+                    {/* UPDATED: Total cost moved to the left side of the middle bar, month name centered on right side. */}
                     <div className="absolute top-1/2 left-0 right-0 h-[64px] -mt-[32px] bg-white/5 border-y border-white/5 backdrop-blur-[1px] z-0 flex items-center px-6">
                         <div className="absolute left-6 text-left w-2/5 min-w-0">
                             <span className="text-[10px] text-yellow-400/60 font-bold uppercase tracking-widest block mb-0.5 truncate">Est. Total (Month)</span>
@@ -421,11 +422,11 @@
                             return (
                                 <div 
                                     key={i} 
-                                    // CHANGE: Adjusted justify-content to center month/year display better, respecting left alignment for cost
                                     className={`h-[64px] w-full flex items-center justify-center snap-start transition-all duration-200 ${isSelected ? 'opacity-100 scale-100' : 'opacity-30 scale-95 blur-[0.5px]'}`}
                                     onClick={() => scrollToMonth(i)}
                                 >
-                                    <div className="text-center w-3/5"> {/* CHANGE: Use proportional width for central content */}
+                                    {/* CHANGE: Added left padding (100px) to push the center text beyond the left-aligned cost area */}
+                                    <div className="text-center w-full pl-[100px] pr-6 box-border"> 
                                         <div className={`font-bold text-xl ${isSelected ? 'text-white' : 'text-slate-300'}`}>{date.toLocaleString('default', { month: 'long' })}</div>
                                         <div className="text-[10px] font-mono text-slate-400 tracking-widest">{date.getFullYear()}</div>
                                     </div>
@@ -868,7 +869,7 @@
         
         // REMOVED AIView and related logic
 
-        const SettingsView = ({ exchangeRate, setExchangeRate, accessKey, onLogout, viewCurrency, setViewCurrency, userId }) => (
+        const SettingsView = ({ exchangeRate, setExchangeRate, accessKey, onLogout, viewCurrency, setViewCurrency, userId, rates, setRates }) => (
             <div className="flex flex-col h-full bg-[#0f172a] w-full">
                 <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icon path={Paths.Settings} size={20} className="text-yellow-400"/> Settings</h1></div>
                 <div className="flex-1 overflow-y-auto p-5 pb-28 space-y-6 w-full box-border">
@@ -885,7 +886,18 @@
                     </div>
                     <div className="glass p-5 rounded-2xl">
                         <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Exchange Rate (1 USD)</label>
-                        <input type="number" value={exchangeRate} onChange={(e) => setExchangeRate(parseFloat(e.target.value))} className="w-full p-2.5 bg-slate-800 rounded-lg border border-slate-700 text-white text-sm font-mono focus:ring-1 focus:ring-yellow-400 outline-none min-w-0" />
+                        <div className="space-y-2">
+                             {/* Display current rate for TRY and CNY for manual override */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-slate-400 w-12 shrink-0">TRY:</span>
+                                <input type="number" value={rates.TRY} onChange={(e) => setRates(prev => ({...prev, TRY: parseFloat(e.target.value)}))} className="w-full p-2.5 bg-slate-800 rounded-lg border border-slate-700 text-white text-sm font-mono focus:ring-1 focus:ring-yellow-400 outline-none min-w-0" />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-slate-400 w-12 shrink-0">CNY:</span>
+                                <input type="number" value={rates.CNY} onChange={(e) => setRates(prev => ({...prev, CNY: parseFloat(e.target.value)}))} className="w-full p-2.5 bg-slate-800 rounded-lg border border-slate-700 text-white text-sm font-mono focus:ring-1 focus:ring-yellow-400 outline-none min-w-0" />
+                            </div>
+                        </div>
+                       
                     </div>
                     <div className="glass p-5 rounded-2xl">
                         <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Secret Key (Share for Access)</label>
@@ -903,7 +915,14 @@
             const [accessKey, setAccessKey] = useState(safeGetItem('fb_tracker_key') || '');
             const [subscriptions, setSubscriptions] = useState([]);
             const [viewCurrency, setViewCurrency] = useState(safeGetItem('tracker_view_currency') || 'TRY');
-            const [exchangeRate, setExchangeRate] = useState(parseFloat(safeGetItem('tracker_usd_try_rate')) || DEFAULT_RATE);
+            
+            // UPDATED: Use rates object to store multiple currency rates
+            const [rates, setRates] = useState({ 
+                TRY: parseFloat(safeGetItem('tracker_usd_try_rate')) || DEFAULT_RATE,
+                CNY: parseFloat(safeGetItem('tracker_usd_cny_rate')) || 6.95, // Default/Fallback rate for CNY/USD
+            });
+            const exchangeRate = rates.TRY; // Keep this alias for the header display
+            
             const [loading, setLoading] = useState(true);
             const [selectedDate, setSelectedDate] = useState(new Date());
             const [activeTab, setActiveTab] = useState('home');
@@ -934,16 +953,22 @@
                 return onAuthStateChanged(auth, u => { setUser(u); if(!accessKey) setLoading(false); });
             }, [accessKey]);
 
-            // 2. Data Persistence (Exchange Rate & View Currency)
-            useEffect(() => { safeSetItem('tracker_usd_try_rate', exchangeRate); }, [exchangeRate]);
+            // 2. Data Persistence (Rates & View Currency)
+            useEffect(() => { 
+                safeSetItem('tracker_usd_try_rate', rates.TRY);
+                safeSetItem('tracker_usd_cny_rate', rates.CNY);
+            }, [rates]);
             useEffect(() => { safeSetItem('tracker_view_currency', viewCurrency); }, [viewCurrency]);
 
             // 3. Exchange Rate Fetch
             useEffect(() => { 
                 fetch('https://api.exchangerate-api.com/v4/latest/USD').then(r=>r.json()).then(d=> { 
-                    if(d.rates?.TRY) {
-                        setExchangeRate(d.rates.TRY);
-                        safeSetItem('tracker_usd_try_rate', d.rates.TRY);
+                    if(d.rates?.TRY || d.rates?.CNY) {
+                        setRates(prev => ({ 
+                            ...prev, 
+                            TRY: d.rates.TRY || prev.TRY, 
+                            CNY: d.rates.CNY || prev.CNY 
+                        }));
                     } 
                 }).catch(e => console.error("Could not fetch exchange rate:", e)); 
             }, []);
@@ -966,14 +991,33 @@
 
             const showToast = (m) => { setToastMsg(m); setTimeout(() => setToastMsg(''), 3000); };
             const handleJoin = (k) => { safeSetItem('fb_tracker_key', k); setAccessKey(k); };
-            const handleLogout = () => { safeRemoveItem('fb_tracker_key'); safeRemoveItem('tracker_view_currency'); safeRemoveItem('tracker_usd_try_rate'); window.location.reload(); };
+            const handleLogout = () => { 
+                safeRemoveItem('fb_tracker_key'); 
+                safeRemoveItem('tracker_view_currency'); 
+                safeRemoveItem('tracker_usd_try_rate'); 
+                safeRemoveItem('tracker_usd_cny_rate');
+                window.location.reload(); 
+            };
+            
+            // UPDATED: General conversion logic using rates object
             const convertToViewCurrency = (amt, curr) => {
                 const amount = parseFloat(amt);
                 if (isNaN(amount) || amount === 0) return 0;
                 if (curr === viewCurrency) return amount;
-                if (curr === 'USD' && viewCurrency === 'TRY') return amount * exchangeRate;
-                if (curr === 'TRY' && viewCurrency === 'USD') return amount / exchangeRate;
-                return amount; // Should not happen with current setup
+                
+                const rateFromUSD = rates[viewCurrency] || 1;
+                const rateToUSD = rates[curr] || 1;
+
+                if (curr === 'USD') {
+                     // Direct conversion from USD to View Currency
+                    return amount * rateFromUSD; 
+                } else if (viewCurrency === 'USD') {
+                    // Direct conversion from Source Currency to USD
+                    return amount / rateToUSD; 
+                } else {
+                    // Convert Source to USD, then USD to View Currency
+                    return (amount / rateToUSD) * rateFromUSD;
+                }
             };
 
             const calculatedTotal = useMemo(() => {
@@ -1017,7 +1061,7 @@
                     if(charge) total += convertToViewCurrency(s.cost, s.currency);
                 });
                 return formatMoney(total, viewCurrency);
-            }, [subscriptions, selectedDate, viewCurrency, exchangeRate]);
+            }, [subscriptions, selectedDate, viewCurrency, rates]); // Dependency changed to rates
 
             const activeCount = subscriptions.filter(s => {
                 const isCancelled = s.status === 'cancelled' || (s.cancellationDate && new Date(s.cancellationDate) < new Date());
@@ -1038,7 +1082,7 @@
                             properties: {
                                 "name": { "type": "STRING", "description": "Subscription name (e.g., 'Netflix', 'Spotify')." },
                                 "cost": { "type": "NUMBER", "description": "The numerical cost." },
-                                "currency": { "type": "STRING", "enum": ["TRY", "USD"], "description": "Currency of the cost." },
+                                "currency": { "type": "STRING", "enum": ["TRY", "USD", "CNY"], "description": "Currency of the cost." },
                                 "frequency": { "type": "STRING", "enum": ["monthly", "yearly", "two_years"], "description": "Recurring period." },
                                 "paymentMethod": { "type": "STRING", "enum": ["credit_card", "apple", "android", "paypal", "other"], "description": "How the payment is made." },
                                 "cardBank": { "type": "STRING", "description": "Bank name if payment is 'credit_card'." },
@@ -1100,7 +1144,7 @@
                         {activeTab === 'home' && <TrackerView subscriptions={subscriptions} loading={loading} openEdit={setEditingSub} viewCurrency={viewCurrency} convertToViewCurrency={convertToViewCurrency} activeCount={activeCount} exchangeRate={exchangeRate} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calculatedTotal={calculatedTotal} />}
                         {activeTab === 'add' && <AddView onSave={saveSub} currencies={currencies} frequencies={frequencies} smartFill={smartFill} isSmartLoading={isSmartLoading} />}
                         {activeTab === 'analyze' && <AnalyzeView subscriptions={subscriptions} viewCurrency={viewCurrency} convertToViewCurrency={convertToViewCurrency} />}
-                        {activeTab === 'settings' && <SettingsView exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} accessKey={accessKey} onLogout={handleLogout} viewCurrency={viewCurrency} setViewCurrency={setViewCurrency} userId={user?.uid || 'N/A'} />}
+                        {activeTab === 'settings' && <SettingsView exchangeRate={exchangeRate} setExchangeRate={setRates} accessKey={accessKey} onLogout={handleLogout} viewCurrency={viewCurrency} setViewCurrency={setViewCurrency} userId={user?.uid || 'N/A'} rates={rates} />}
                     </div>
                     
                     {/* Modern Floating Bottom Nav */}
