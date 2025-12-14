@@ -8,6 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0f172a">
     <meta name="application-name" content="Mumi Tracker">
+    <!-- Icon URLs (using inline SVGs for stability) -->
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230f172a'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='%23facc15' font-family='sans-serif' font-weight='bold' font-size='280'%3EMS%3C/text%3E%3C/svg%3E">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230f172a'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='%23facc15' font-family='sans-serif' font-weight='bold' font-size='280'%3EMS%3C/text%3E%3C/svg%3E">
     
@@ -21,24 +22,24 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap');
         
-        :root {
-            --fb-navy: #0f172a; 
-            --fb-yellow: #facc15;
-            --glass-bg: rgba(30, 41, 59, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.08);
-        }
-
         /* RESET & BASE STYLES */
-        html { height: 100%; width: 100%; overflow: hidden; background-color: var(--fb-navy); }
+        html { height: 100%; width: 100%; overflow: hidden; background-color: #0f172a; }
         body { 
             height: 100%; width: 100%; overflow: hidden;
             font-family: 'Manrope', sans-serif; 
-            background-color: var(--fb-navy);
+            background-color: #0f172a;
             color: #f8fafc;
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior: none;
+            box-sizing: border-box; /* Crucial for responsiveness */
         }
-
+        #root {
+            height: 100%;
+            width: 100%;
+            display: flex;
+            justify-content: center; /* Center content on larger screens */
+        }
+        
         /* UTILITIES */
         .glass {
             background: rgba(30, 41, 59, 0.6);
@@ -57,10 +58,17 @@
             padding-bottom: 1rem;
         }
 
+        .nav-panel {
+            background: rgba(15, 23, 42, 0.96);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .snap-y { scroll-snap-type: y mandatory; }
         .pb-safe { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+        .pt-safe { padding-top: max(1rem, env(safe-area-inset-top)); }
         
         .btn-3d {
             transition: transform 0.1s, box-shadow 0.1s;
@@ -76,17 +84,11 @@
         input, select { 
             color-scheme: dark; 
             appearance: none; -webkit-appearance: none; 
-            min-width: 0; /* Prevents input stretching parent */
-            box-sizing: border-box; /* Ensures padding/border is inside width */
+            min-width: 0; 
+            box-sizing: border-box;
         }
         input::placeholder { color: #64748b; }
         
-        /* Ensure responsive grid items don't push outside */
-        .grid-item-fill {
-             width: 100%;
-             min-width: 0;
-             box-sizing: border-box;
-        }
     </style>
 </head>
 <body>
@@ -97,7 +99,7 @@
         import { getFirestore, collection, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
-        // --- ICONS ---
+        // --- ICONS (Lucide paths used) ---
         const Icon = ({ path, size = 24, className = "" }) => (
             <svg 
                 xmlns="http://www.w3.org/2000/svg"
@@ -134,7 +136,7 @@
             CreditCard: <><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></>,
             Apple: <path d="M17.276 14.531c-.021 2.373 2.073 3.176 2.162 3.22-1.802 2.585-3.693 2.193-4.524 2.193-1.129 0-2.31-.699-2.926-.699-.679 0-1.688.683-2.775.683-2.222 0-4.697-2.147-4.697-5.32 0-2.812 1.83-4.28 3.593-4.28 1.125 0 2.02.771 2.653.771.633 0 1.637-.811 2.921-.811.479 0 2.223.041 3.299 1.583-2.651 1.29-2.194 4.382.294 2.66zm-2.122-6.953c.969-1.161.812-2.783.812-2.783-1.63.063-2.922 1.077-3.328 2.218-.363 1.008.016 2.639.016 2.639 1.691.132 2.5-.914 2.5-.914z"/>,
             Android: <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993.0001.5511-.4486.9997-.9996.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993 0 .5511-.4486.9997-.9996.9997m11.4045-6.02l1.9973-3.459a.415.415 0 00-.152-.5676.4155.4155 0 00-.568.1524l-2.026 3.5095a12.2133 12.2133 0 00-5.132-1.1265 12.21 12.21 0 00-5.132 1.1265L4.8432 5.4473a.4162.4162 0 00-.568-.1524.415.415 0 00-.152.5676l1.9973 3.459C2.6888 11.1866.3436 14.6586.3436 18.667h23.3128c0-4.0084-2.3452-7.4804-5.7287-9.3456"/>,
-            Paypal: <><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><path d="M12 15h.01"/></>,
+            Paypal: <><path d="M14 17c-2 0-3.5-2.23-3.5-5s1.5-5 3.5-5 3.5 2.23 3.5 5-1.5 5-3.5 5z"/><path d="M8 8c1.5 0 2.5 1 2.5 2.5S9.5 13 8 13c-1.5 0-2.5-1-2.5-2.5S6.5 8 8 8z"/><path d="M22 10.5c-3-.5-4.5-1.5-4.5-3.5 0-1 1-1.5 2.5-1.5 1 0 1.5.5 2.5 1 1 0 1.5 0 1.5-1 0-1.5-1-2.5-3.5-2.5-3 0-5 1.5-5 4.5 0 2 1.5 3 4.5 3z"/><path d="M2 13.5c3 .5 4.5 1.5 4.5 3.5 0 1-1 1.5-2.5 1.5-1 0-1.5-.5-2.5-1-1 0-1.5 0-1.5 1 0 1.5 1 2.5 3.5 2.5 3 0 5-1.5 5-4.5 0-2-1.5-3-4.5-3z"/></>,
             Briefcase: <><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></>,
             Clapperboard: <><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4"/><path d="M14 12h4"/><path d="M6 6v12"/><path d="M18 6v12"/></>,
             Zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>,
@@ -145,40 +147,64 @@
 
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // --- FIREBASE CONFIG (YOURS) ---
-        const firebaseConfig = {
-          apiKey: "AIzaSyCbwSFzMzJuNsJFROkKTvNXLwmt7lI3m4w",
-          authDomain: "ms-tracker-9bee7.firebaseapp.com",
-          projectId: "ms-tracker-9bee7",
-          storageBucket: "ms-tracker-9bee7.firebasestorage.app",
-          messagingSenderId: "99948342020",
-          appId: "1:99948342020:web:400d959a881355120afe51"
-        };
+        // --- FIREBASE CONFIG (MANDATORY USE OF GLOBALS) ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'mumi-tracker-default';
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "mumi-tracker";
+        // import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        // setLogLevel('debug'); // Optional: for debugging firestore
 
         // --- UTILS ---
         const safeGetItem = (key) => { try { return localStorage.getItem(key); } catch(e) { return null; } };
         const safeSetItem = (key, value) => { try { localStorage.setItem(key, value); } catch(e) {} };
         const safeRemoveItem = (key) => { try { localStorage.removeItem(key); } catch(e) {} };
 
-        // --- GEMINI API ---
-        const callGemini = async (prompt, signal = null) => {
-            const apiKey = ""; 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-                    signal: signal
-                });
-                const data = await response.json();
-                return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
-            } catch (e) { return null; }
+        // --- GEMINI API (RELIABLE IMPLEMENTATION) ---
+        const geminiApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent";
+        const apiKey = ""; // API key will be provided by Canvas runtime
+
+        /**
+         * Calls the Gemini API with exponential backoff.
+         * @param {object} payload - The API payload (contents, generationConfig, etc.).
+         * @param {number} maxRetries - Maximum number of retries.
+         * @returns {Promise<string|null>} Generated text or null on failure.
+         */
+        const callGemini = async (payload, maxRetries = 3) => {
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+                try {
+                    const response = await fetch(`${geminiApiUrl}?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (response.status === 429 && attempt < maxRetries - 1) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue; // Retry on rate limit
+                    }
+
+                    const data = await response.json();
+                    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
+                        return data.candidates[0].content.parts[0].text;
+                    }
+                    return null;
+
+                } catch (e) {
+                    if (attempt < maxRetries - 1) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue; // Retry on network/general errors
+                    }
+                    console.error("Gemini API call failed after retries:", e);
+                    return null;
+                }
+            }
+            return null;
         };
+
 
         const DEFAULT_RATE = 42.58; 
         const frequencies = [{ id: 'monthly', label: 'Monthly' }, { id: 'yearly', label: 'Yearly' }];
@@ -193,35 +219,35 @@
         ];
 
         const categories = [
-          { id: 'entertainment', label: 'Ent.', icon: 'Clapperboard', color: '#facc15', keywords: ['netflix', 'spotify', 'disney', 'hulu', 'youtube', 'hbo', 'music', 'game'] },
-          { id: 'work', label: 'Work', icon: 'Briefcase', color: '#38bdf8', keywords: ['adobe', 'office', 'slack', 'zoom', 'linkedin', 'github', 'gpt'] },
-          { id: 'utilities', label: 'Utils', icon: 'Zap', color: '#94a3b8', keywords: ['icloud', 'google', 'dropbox', 'aws', 'internet', 'vpn'] },
-          { id: 'health', label: 'Health', icon: 'Heart', color: '#f87171', keywords: ['gym', 'fitness', 'strava', 'headspace'] },
-          { id: 'shopping', label: 'Shop', icon: 'ShoppingBag', color: '#c084fc', keywords: ['amazon', 'prime', 'mart'] },
-          { id: 'general', label: 'Gen', icon: 'Layers', color: '#cbd5e1', keywords: [] },
+            { id: 'entertainment', label: 'Ent.', icon: 'Clapperboard', color: '#facc15', keywords: ['netflix', 'spotify', 'disney', 'hulu', 'youtube', 'hbo', 'music', 'game'] },
+            { id: 'work', label: 'Work', icon: 'Briefcase', color: '#38bdf8', keywords: ['adobe', 'office', 'slack', 'zoom', 'linkedin', 'github', 'gpt'] },
+            { id: 'utilities', label: 'Utils', icon: 'Zap', color: '#94a3b8', keywords: ['icloud', 'google', 'dropbox', 'aws', 'internet', 'vpn'] },
+            { id: 'health', label: 'Health', icon: 'Heart', color: '#f87171', keywords: ['gym', 'fitness', 'strava', 'headspace'] },
+            { id: 'shopping', label: 'Shop', icon: 'ShoppingBag', color: '#c084fc', keywords: ['amazon', 'prime', 'mart'] },
+            { id: 'general', label: 'Gen', icon: 'Layers', color: '#cbd5e1', keywords: [] },
         ];
 
         const formatMoney = (amount, currency) => new Intl.NumberFormat('en-US', { style: 'currency', currency: currency, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
         const detectCategory = (name) => {
-          const lowerName = name.toLowerCase();
-          for (const cat of categories) if (cat.keywords.some(k => lowerName.includes(k))) return cat.id;
-          return 'general';
+            const lowerName = name.toLowerCase();
+            for (const cat of categories) if (cat.keywords.some(k => lowerName.includes(k))) return cat.id;
+            return 'general';
         };
         const isApproaching = (startDate, frequency, cancelDate) => {
-          const today = new Date();
-          const start = new Date(startDate);
-          if(cancelDate && new Date(cancelDate) < today) return false;
-          let nextDate = new Date(start);
-          if (frequency === 'monthly') {
-            nextDate.setFullYear(today.getFullYear(), today.getMonth(), start.getDate());
-            if (nextDate < today) nextDate.setMonth(nextDate.getMonth() + 1);
-          } else { 
-            nextDate.setFullYear(today.getFullYear());
-            if (nextDate < today) nextDate.setFullYear(nextDate.getFullYear() + 1);
-          }
-          if(cancelDate && nextDate > new Date(cancelDate)) return false;
-          const diffDays = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24)); 
-          return diffDays >= 0 && diffDays <= 3;
+            const today = new Date();
+            const start = new Date(startDate);
+            if(cancelDate && new Date(cancelDate) < today) return false;
+            let nextDate = new Date(start);
+            if (frequency === 'monthly') {
+                nextDate.setFullYear(today.getFullYear(), today.getMonth(), start.getDate());
+                if (nextDate < today) nextDate.setMonth(nextDate.getMonth() + 1);
+            } else { 
+                nextDate.setFullYear(today.getFullYear());
+                if (nextDate < today) nextDate.setFullYear(nextDate.getFullYear() + 1);
+            }
+            if(cancelDate && nextDate > new Date(cancelDate)) return false;
+            const diffDays = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24)); 
+            return diffDays >= 0 && diffDays <= 3;
         };
         const copyToClipboard = (text) => {
             const textArea = document.createElement("textarea");
@@ -237,101 +263,141 @@
             <div className="glass rounded-2xl p-4 mb-3 animate-pulse">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-white/10"></div>
-                        <div className="space-y-2">
+                        <div className="w-9 h-9 rounded-full bg-white/10 shrink-0"></div>
+                        <div className="space-y-2 min-w-0 flex-1">
                             <div className="h-4 w-24 bg-white/10 rounded"></div>
                             <div className="h-2 w-16 bg-white/10 rounded"></div>
                         </div>
                     </div>
-                    <div className="h-5 w-16 bg-white/10 rounded"></div>
+                    <div className="h-5 w-16 bg-white/10 rounded shrink-0"></div>
                 </div>
             </div>
         );
 
         const AccessModal = ({ onJoin }) => {
-          const [key, setKey] = useState('');
-          return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[#0f172a]">
-              <div className="w-full max-w-sm glass rounded-3xl p-8 text-center border border-white/10">
-                <div className="w-14 h-14 bg-yellow-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(250,204,21,0.4)]">
-                  <Icon path={Paths.Home} size={28} className="text-[#0f172a]" />
+            const [key, setKey] = useState('');
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[#0f172a]">
+                    <div className="w-full max-w-sm glass rounded-3xl p-8 text-center border border-white/10 animate-in fade-in zoom-in-50">
+                        <div className="w-14 h-14 bg-yellow-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(250,204,21,0.4)]">
+                            <Icon path={Paths.Home} size={28} className="text-[#0f172a]" />
+                        </div>
+                        <h1 className="text-2xl font-extrabold text-white mb-2 tracking-tight">Mumi Tracker Pro</h1>
+                        <p className="text-sm text-slate-400 mb-8 font-medium">Secure Access Vault</p>
+                        <input type="text" placeholder="Enter Secret Key" value={key} onChange={(e) => setKey(e.target.value)}
+                            className="w-full bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-center text-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition-all placeholder:text-slate-600 mb-4 font-mono text-lg" />
+                        <button onClick={() => key.trim() && onJoin(key.trim())} className="w-full bg-yellow-400 text-slate-900 font-bold py-4 rounded-xl hover:bg-yellow-300 active:scale-95 transition-all shadow-lg">
+                            Unlock
+                        </button>
+                    </div>
                 </div>
-                <h1 className="text-2xl font-extrabold text-white mb-2 tracking-tight">Mumi Tracker Pro</h1>
-                <p className="text-sm text-slate-400 mb-8 font-medium">Secure Access Vault</p>
-                <input type="text" placeholder="Enter Secret Key" value={key} onChange={(e) => setKey(e.target.value)}
-                  className="w-full bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-center text-white focus:ring-2 focus:ring-yellow-400 focus:outline-none transition-all placeholder:text-slate-600 mb-4 font-mono text-lg" />
-                <button onClick={() => key.trim() && onJoin(key.trim())} className="w-full bg-yellow-400 text-slate-900 font-bold py-4 rounded-xl hover:bg-yellow-300 active:scale-95 transition-all shadow-lg">
-                  Unlock
-                </button>
-              </div>
-            </div>
-          );
+            );
         };
 
         const TimeWheel = ({ selectedDate, onChange, totalCost }) => {
-          const scrollRef = useRef(null);
-          const [months, setMonths] = useState([]);
-          
-          useEffect(() => {
-            const now = new Date();
-            const ms = [];
-            for (let i = -12; i < 60; i++) {
-              const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-              ms.push(d);
-            }
-            setMonths(ms);
-          }, []);
+            const scrollRef = useRef(null);
+            const [months, setMonths] = useState([]);
+            
+            useEffect(() => {
+                const now = new Date();
+                const ms = [];
+                // Generate months from 1 year ago to 5 years in the future
+                for (let i = -12; i < 60; i++) {
+                    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                    ms.push(d);
+                }
+                setMonths(ms);
+            }, []);
 
-          useEffect(() => {
-            if (scrollRef.current && months.length > 0) {
-                scrollRef.current.scrollTop = 12 * 64; 
-            }
-          }, [months.length]);
+            // Initial scroll to center
+            useEffect(() => {
+                if (scrollRef.current && months.length > 0) {
+                    const currentIndex = months.findIndex(d => d.getFullYear() === selectedDate.getFullYear() && d.getMonth() === selectedDate.getMonth());
+                    if (currentIndex !== -1) {
+                         // Scroll to the current month index (index 12 is roughly 'now')
+                         scrollRef.current.scrollTop = currentIndex * 64;
+                    } else {
+                         scrollRef.current.scrollTop = 12 * 64; 
+                    }
+                }
+            }, [months.length]);
 
-          const handleScroll = () => {
-            if (!scrollRef.current) return;
-            const itemHeight = 64;
-            const index = Math.round(scrollRef.current.scrollTop / itemHeight);
-            if (months[index] && (months[index].getTime() !== selectedDate.getTime())) {
-                 onChange(months[index]);
-            }
-          };
+            const handleScroll = () => {
+                if (!scrollRef.current) return;
+                const itemHeight = 64;
+                
+                // Calculate the index of the item currently aligned at the *top* of the scroll container
+                // This works well with snap-start and smooth scrolling removed.
+                const index = Math.round(scrollRef.current.scrollTop / itemHeight); 
 
-          return (
-            <div className="relative h-[192px] w-full overflow-hidden flex flex-col items-center justify-center shrink-0 select-none">
-              <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
-              <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
-              
-              <div className="absolute top-1/2 left-0 right-0 h-[64px] -mt-[32px] bg-white/5 border-y border-white/5 backdrop-blur-[1px] z-0 flex items-center justify-between px-6">
-                 <div className="absolute right-6 text-right">
-                     <span className="text-[10px] text-yellow-400/60 font-bold uppercase tracking-widest block mb-0.5">Est. Total</span>
-                     <span className="text-xl font-bold text-yellow-400 font-mono tracking-tight">{totalCost}</span>
-                 </div>
-              </div>
-              
-              <div 
-                ref={scrollRef} 
-                onScroll={handleScroll} 
-                className="w-full h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar py-[64px]"
-                style={{ scrollBehavior: 'smooth' }}
-              >
-                {months.map((date, i) => {
-                  const isSelected = selectedDate.getMonth() === date.getMonth() && selectedDate.getFullYear() === date.getFullYear();
-                  return (
-                    <div 
-                        key={i} 
-                        className={`h-[64px] w-full flex iatems-center px-6 snap-center transition-all duration-200 ${isSelected ? 'opacity-100 pl-4 scale-105' : 'opacity-30 scale-95 blur-[0.5px]'}`}
-                    >
-                      <div className="text-left">
-                        <div className={`font-bold text-xl ${isSelected ? 'text-white' : 'text-slate-300'}`}>{date.toLocaleString('default', { month: 'long' })}</div>
-                        <div className="text-[10px] font-mono text-slate-400 tracking-widest">{date.getFullYear()}</div>
-                      </div>
+                if (months[index]) {
+                    const newDate = months[index];
+                    // Use a timeout to ensure the scroll snap has settled before calling onChange
+                    setTimeout(() => {
+                         const settledIndex = Math.round(scrollRef.current.scrollTop / itemHeight);
+                         if (settledIndex === index) {
+                             if (newDate.getMonth() !== selectedDate.getMonth() || newDate.getFullYear() !== selectedDate.getFullYear()) {
+                                 onChange(newDate);
+                             }
+                         }
+                    }, 50); 
+                }
+            };
+
+            const scrollToMonth = (index) => {
+                if (scrollRef.current) {
+                    // Force smooth scroll to the target month
+                    scrollRef.current.scrollTo({
+                        top: index * 64,
+                        behavior: 'smooth'
+                    });
+                }
+            };
+            
+            // Effect to re-scroll smoothly if the date changes externally (e.g. from data logic)
+            useEffect(() => {
+                const currentIndex = months.findIndex(d => d.getFullYear() === selectedDate.getFullYear() && d.getMonth() === selectedDate.getMonth());
+                 if (currentIndex !== -1 && scrollRef.current && (Math.abs(scrollRef.current.scrollTop - currentIndex * 64) > 32)) {
+                    scrollToMonth(currentIndex);
+                }
+            }, [selectedDate, months]);
+
+
+            return (
+                <div className="relative h-[192px] w-full overflow-hidden flex flex-col items-center justify-center shrink-0 select-none bg-[#0f172a]">
+                    <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
+                    
+                    <div className="absolute top-1/2 left-0 right-0 h-[64px] -mt-[32px] bg-white/5 border-y border-white/5 backdrop-blur-[1px] z-0 flex items-center justify-between px-6">
+                        <div className="absolute right-6 text-right">
+                            <span className="text-[10px] text-yellow-400/60 font-bold uppercase tracking-widest block mb-0.5">Est. Total</span>
+                            <span className="text-xl font-bold text-yellow-400 font-mono tracking-tight">{totalCost}</span>
+                        </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
+                    
+                    <div 
+                        ref={scrollRef} 
+                        onScroll={handleScroll} 
+                        className="w-full h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar py-[64px]"
+                    >
+                        {months.map((date, i) => {
+                            const isSelected = selectedDate.getMonth() === date.getMonth() && selectedDate.getFullYear() === date.getFullYear();
+                            return (
+                                <div 
+                                    key={i} 
+                                    className={`h-[64px] w-full flex items-center px-6 snap-start transition-all duration-200 ${isSelected ? 'opacity-100 pl-4 scale-105' : 'opacity-30 scale-95 blur-[0.5px]'}`}
+                                    onClick={() => scrollToMonth(i)}
+                                >
+                                    <div className="text-left">
+                                        <div className={`font-bold text-xl ${isSelected ? 'text-white' : 'text-slate-300'}`}>{date.toLocaleString('default', { month: 'long' })}</div>
+                                        <div className="text-[10px] font-mono text-slate-400 tracking-widest">{date.getFullYear()}</div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
         };
 
         const DonutChart = ({ data, total }) => {
@@ -360,11 +426,122 @@
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Total</span>
-                        <span className="text-xl font-bold text-white">{total.toFixed(0)}</span>
+                        <span className="text-xl font-bold text-white">{formatMoney(total, 'USD').replace('$', '')}</span> 
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">({viewCurrency})</span>
                     </div>
                 </div>
             );
         };
+
+        const SubscriptionEditModal = ({ subscription, onSave, onDelete, onClose }) => {
+            const [localData, setLocalData] = useState(subscription);
+            const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+            const handleSave = () => {
+                const dataToSave = { ...localData, cost: parseFloat(localData.cost) };
+                if (isNaN(dataToSave.cost) || dataToSave.cost <= 0) return alert('Please enter a valid cost.');
+                onSave(dataToSave);
+            };
+
+            const handleDelete = () => {
+                onDelete(localData.id);
+                setConfirmDeleteId(null);
+            };
+            
+            // Determine if the current subscription is cancelled
+            const isSubscriptionCancelled = localData.status === 'cancelled' || (localData.cancellationDate && new Date(localData.cancellationDate) < new Date());
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-auto" style={{zIndex: 9999}}>
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+                    <div className="bg-[#1e293b] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl transform transition-transform duration-300 animate-in slide-in-from-bottom-10 h-auto max-h-[85vh] overflow-y-auto border-t border-white/10 pb-12 box-border mx-auto relative z-10">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-white">Edit Membership</h2>
+                            <button type="button" onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:bg-slate-700 active:bg-slate-600 transition-colors cursor-pointer"><Icon path={Paths.X} size={18} /></button>
+                        </div>
+                        <div className="space-y-4">
+                            <input className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 outline-none box-border min-w-0" value={localData.name} onChange={e => setLocalData({...localData, name: e.target.value})} />
+                            
+                            <div className="grid grid-cols-2 gap-3">
+                                <input type="number" className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border min-w-0" value={localData.cost} onChange={e => setLocalData({...localData, cost: e.target.value})} />
+                                <select className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border min-w-0" value={localData.currency} onChange={e => setLocalData({...localData, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="flex bg-slate-800 p-1 rounded-2xl border border-slate-700 box-border min-w-0">
+                                    {frequencies.map(f => (<button type="button" key={f.id} onClick={() => setLocalData({...localData, frequency: f.id})} className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${localData.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}
+                                </div>
+                                <input type="date" className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-xs outline-none box-border min-w-0" value={localData.startDate} onChange={e => setLocalData({...localData, startDate: e.target.value})} />
+                            </div>
+                            
+                            {/* Cancellation Date (Edit) */}
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1 flex justify-between items-center">
+                                    <span>Cancel Date (Optional)</span>
+                                    {localData.cancellationDate && (
+                                        <button type="button" onClick={() => setLocalData({...localData, cancellationDate: ''})} className="text-[10px] text-red-400 font-bold uppercase hover:text-red-300">Clear</button>
+                                    )}
+                                </label>
+                                <input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border min-w-0 focus:ring-1 focus:ring-red-400 focus:border-red-400" value={localData.cancellationDate || ''} onChange={e => setLocalData({...localData, cancellationDate: e.target.value})} />
+                            </div>
+
+                            {/* Category Edit */}
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Category</label>
+                                <div className="grid grid-cols-3 gap-3 mt-1 sm:grid-cols-6">
+                                    {categories.map(cat => (
+                                        <button type="button" key={cat.id} onClick={() => setLocalData({...localData, category: cat.id})} className={`w-full py-2.5 rounded-xl border flex flex-col items-center gap-1 transition-all ${localData.category === cat.id ? 'bg-slate-700 border-yellow-400 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                                            <Icon path={Paths[cat.icon]} size={18} /> <span className="text-[9px] font-bold">{cat.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Payment</label>
+                                <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border w-full">
+                                    {paymentMethods.map(pm => (
+                                        <button type="button" key={pm.id} onClick={() => setLocalData({...localData, paymentMethod: pm.id === localData.paymentMethod ? '' : pm.id})} className={`flex-shrink-0 px-4 py-3 rounded-xl border flex flex-col items-center gap-1.5 min-w-[64px] transition-all ${localData.paymentMethod === pm.id ? 'bg-slate-700 border-blue-400 text-blue-400 ring-1 ring-blue-400/50' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                                            <Icon path={Paths[pm.icon]} size={18} /><span className="text-[9px] font-bold">{pm.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                {localData.paymentMethod === 'credit_card' && (
+                                    <div className="grid grid-cols-2 gap-3 mt-2 box-border w-full animate-in slide-in-from-top-1">
+                                        <input className="w-full p-3 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Bank Name" value={localData.cardBank || ''} onChange={e => setLocalData({...localData, cardBank: e.target.value})} />
+                                        <input className="w-full p-3 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Last 4" maxLength={4} value={localData.cardLast4 || ''} onChange={e => setLocalData({...localData, cardLast4: e.target.value})} />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2">
+                                <label className="text-xs font-medium text-slate-400">Subscription Status</label>
+                                <button type="button" onClick={() => setLocalData({...localData, status: localData.status === 'active' ? 'cancelled' : 'active'})} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${isSubscriptionCancelled ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'}`}>
+                                    {isSubscriptionCancelled ? 'CANCELLED' : 'ACTIVE'}
+                                </button>
+                            </div>
+
+                            <div className="flex gap-3 pt-4">
+                                <button type="button" onClick={() => setConfirmDeleteId(localData.id)} className="p-4 bg-red-500/10 text-red-400 rounded-2xl border border-red-500/20 hover:bg-red-500/20 transition active:scale-95 shrink-0"><Icon path={Paths.Trash2} size={20} /></button>
+                                <button type="button" onClick={handleSave} className="flex-1 bg-yellow-400 text-slate-900 font-extrabold py-3.5 rounded-2xl hover:bg-yellow-300 transition text-sm cursor-pointer shadow-lg shadow-yellow-400/20 active:scale-95">Update Membership</button>
+                            </div>
+                        </div>
+                    </div>
+                    {confirmDeleteId && (
+                        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6" style={{zIndex: 10000}}>
+                            <div className="glass p-6 rounded-3xl w-full max-w-sm text-center border border-white/10 mx-auto animate-in fade-in zoom-in-90">
+                                <h3 className="text-lg font-bold text-white mb-6">Delete Membership?</h3>
+                                <div className="flex gap-3">
+                                    <button type="button" onClick={() => setConfirmDeleteId(null)} className="flex-1 py-3 bg-slate-700 text-white font-bold rounded-2xl text-sm active:scale-95">Cancel</button>
+                                    <button type="button" onClick={handleDelete} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm active:scale-95">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
 
         const TrackerView = ({ subscriptions, loading, openEdit, viewCurrency, convertToViewCurrency, activeCount, exchangeRate, selectedDate, setSelectedDate, calculatedTotal }) => {
             const [filterOpen, setFilterOpen] = useState(false);
@@ -388,18 +565,18 @@
             return (
                 <div className="flex flex-col h-full w-full bg-[#0f172a]"> 
                     <div className="glass-panel px-6 flex justify-between items-center z-10 sticky top-0 w-full box-border">
-                         <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center text-[#002d72] font-bold shadow-lg shrink-0">
-                                <Icon path={Paths.TrendingUp} size={20} />
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center text-[#0f172a] font-bold shadow-lg shrink-0">
+                                    <Icon path={Paths.TrendingUp} size={20} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <h1 className="font-bold text-lg text-white truncate leading-tight">Mumi's Tracker</h1>
+                                    <div className="text-[11px] text-blue-200 truncate">{activeCount} Active • 1$ = {exchangeRate.toFixed(2)}₺</div>
+                                </div>
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <h1 className="font-bold text-lg text-white truncate leading-tight">Mumi's Tracker</h1>
-                                <div className="text-[11px] text-blue-200 truncate">{activeCount} Active • 1$ = {exchangeRate.toFixed(1)}₺</div>
-                            </div>
-                        </div>
-                        <button onClick={() => setFilterOpen(!filterOpen)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${filterOpen ? 'bg-yellow-400 text-slate-900' : 'bg-white/5 text-slate-300 border border-white/10'}`}>
-                            <Icon path={Paths.Filter} size={18} />
-                        </button>
+                            <button onClick={() => setFilterOpen(!filterOpen)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${filterOpen ? 'bg-yellow-400 text-slate-900' : 'bg-white/5 text-slate-300 border border-white/10'}`}>
+                                <Icon path={Paths.Filter} size={18} />
+                            </button>
                     </div>
                     {filterOpen && (
                         <div className="bg-[#1e293b] border-b border-white/5 p-4 animate-in slide-in-from-top-2 z-0 w-full box-border">
@@ -407,7 +584,7 @@
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-2">Sort</label>
                                 <div className="flex gap-2">
                                     {[{id:'cost-high', l:'High Price'}, {id:'cost-low', l:'Low Price'}, {id:'name', l:'A-Z'}].map(o => (
-                                        <button key={o.id} onClick={() => setSortType(o.id)} className={`px-4 py-1.5 text-xs font-bold rounded-full border transition-all ${sortType === o.id ? 'bg-yellow-400 text-slate-900 border-yellow-400' : 'bg-transparent text-slate-400 border-slate-600'}`}>{o.l}</button>
+                                        <button key={o.id} onClick={() => setSortType(o.id)} className={`flex-shrink-0 px-4 py-1.5 text-xs font-bold rounded-full border transition-all ${sortType === o.id ? 'bg-yellow-400 text-slate-900 border-yellow-400' : 'bg-transparent text-slate-400 border-slate-600'}`}>{o.l}</button>
                                     ))}
                                 </div>
                             </div>
@@ -427,42 +604,42 @@
                     <TimeWheel selectedDate={selectedDate} onChange={setSelectedDate} totalCost={calculatedTotal} />
                     <div className="flex-1 overflow-y-auto p-4 pb-32 w-full box-border">
                         {loading ? <div className="space-y-3"><SkeletonCard/><SkeletonCard/><SkeletonCard/></div> : 
-                         processedSubs.length === 0 ? <div className="text-center pt-24 opacity-40"><div className="mx-auto w-16 h-16 text-slate-600 flex justify-center mb-4"><Icon path={Paths.CreditCard} size={64} /></div><p className="text-sm font-medium text-slate-400">No memberships found.</p></div> : (
-                          <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                            {processedSubs.map(sub => {
-                              const displayCost = convertToViewCurrency(sub.cost, sub.currency);
-                              const isActive = sub.status === 'active';
-                              const approaching = isActive && isApproaching(sub.startDate, sub.frequency, sub.cancellationDate);
-                              const CatData = categories.find(c => c.id === sub.category) || categories[5];
-                              const PayData = paymentMethods.find(p => p.id === sub.paymentMethod);
-                              let payText = PayData ? PayData.label : '';
-                              if (sub.paymentMethod === 'credit_card' && sub.cardBank) payText = `${sub.cardBank} ${sub.cardLast4 ? '• '+sub.cardLast4 : ''}`;
-                              
-                              const isCancelled = sub.status === 'cancelled' || (sub.cancellationDate && new Date(sub.cancellationDate) < new Date());
+                            processedSubs.length === 0 ? <div className="text-center pt-24 opacity-40"><div className="mx-auto w-16 h-16 text-slate-600 flex justify-center mb-4"><Icon path={Paths.CreditCard} size={64} /></div><p className="text-sm font-medium text-slate-400">No memberships found.</p></div> : (
+                            <div className="grid gap-3 grid-cols-1">
+                                {processedSubs.map(sub => {
+                                    const displayCost = convertToViewCurrency(sub.cost, sub.currency);
+                                    const isActive = sub.status === 'active';
+                                    const approaching = isActive && isApproaching(sub.startDate, sub.frequency, sub.cancellationDate);
+                                    const CatData = categories.find(c => c.id === sub.category) || categories[5];
+                                    const PayData = paymentMethods.find(p => p.id === sub.paymentMethod);
+                                    let payText = PayData ? PayData.label : '';
+                                    if (sub.paymentMethod === 'credit_card' && sub.cardBank) payText = `${sub.cardBank} ${sub.cardLast4 ? '• '+sub.cardLast4 : ''}`;
+                                    
+                                    const isCancelled = sub.status === 'cancelled' || (sub.cancellationDate && new Date(sub.cancellationDate) < new Date());
 
-                              return (
-                                <div key={sub.id} onClick={() => openEdit(sub)} className={`relative glass rounded-2xl p-4 transition active:scale-[0.98] ${approaching ? 'border-yellow-400/50 ring-1 ring-yellow-400/20' : ''} ${isCancelled ? 'opacity-50 grayscale' : ''}`}>
-                                  {approaching && !isCancelled && <div className="absolute top-0 right-0 bg-yellow-400 text-slate-900 text-[9px] font-extrabold px-2 py-1 rounded-bl-xl rounded-tr-xl z-10 flex items-center gap-1">SOON</div>}
-                                  <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-3.5 min-w-0">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-slate-900 shadow-lg font-bold shrink-0`} style={{backgroundColor: isActive ? CatData.color : '#475569'}}><Icon path={Paths[CatData.icon]} size={18} /></div>
-                                        <div className="min-w-0">
-                                            <h3 className="font-bold text-white text-[15px] leading-tight mb-1 truncate">{sub.name}</h3>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-slate-300 capitalize font-medium">{sub.frequency}</span>
-                                                {PayData && <span className="text-[10px] bg-blue-500/20 px-1.5 py-0.5 rounded text-blue-200 flex items-center gap-1 border border-blue-500/20 truncate"><Icon path={Paths[PayData.icon]} size={10} /> {payText}</span>}
+                                    return (
+                                        <div key={sub.id} onClick={() => openEdit(sub)} className={`relative glass rounded-2xl p-4 transition active:scale-[0.98] cursor-pointer ${approaching ? 'border-yellow-400/50 ring-1 ring-yellow-400/20' : ''} ${isCancelled ? 'opacity-50 grayscale' : ''}`}>
+                                            {approaching && !isCancelled && <div className="absolute top-0 right-0 bg-yellow-400 text-slate-900 text-[9px] font-extrabold px-2 py-1 rounded-bl-xl rounded-tr-xl z-10 flex items-center gap-1">SOON</div>}
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-3.5 min-w-0">
+                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-slate-900 shadow-lg font-bold shrink-0`} style={{backgroundColor: isActive ? CatData.color : '#475569'}}><Icon path={Paths[CatData.icon]} size={18} /></div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <h3 className="font-bold text-white text-[15px] leading-tight mb-1 truncate">{sub.name}</h3>
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-slate-300 capitalize font-medium shrink-0">{sub.frequency}</span>
+                                                            {PayData && <span className="text-[10px] bg-blue-500/20 px-1.5 py-0.5 rounded text-blue-200 flex items-center gap-1 border border-blue-500/20 truncate min-w-0 shrink-0"><Icon path={Paths[PayData.icon]} size={10} /> {payText}</span>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right shrink-0">
+                                                    <div className="font-bold text-lg text-white tracking-tight">{formatMoney(displayCost, viewCurrency)}</div>
+                                                    <div className={`text-[10px] font-bold ${approaching && !isCancelled ? 'text-yellow-400' : 'text-slate-500'}`}>{new Date(sub.startDate).getDate()}{['st','nd','rd'][((new Date(sub.startDate).getDate()+90)%100-10)%10-1]||'th'}</div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="text-right shrink-0">
-                                        <div className="font-bold text-lg text-white tracking-tight">{formatMoney(displayCost, viewCurrency)}</div>
-                                        <div className={`text-[10px] font-bold ${approaching && !isCancelled ? 'text-yellow-400' : 'text-slate-500'}`}>{new Date(sub.startDate).getDate()}{['st','nd','rd'][((new Date(sub.startDate).getDate()+90)%100-10)%10-1]||'th'}</div>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+                                    );
+                                })}
+                            </div>
                         )}
                     </div>
                 </div>
@@ -475,15 +652,18 @@
                 let total = 0;
                 categories.forEach(c => sums[c.id] = 0);
                 subscriptions.forEach(sub => {
+                    // Check if subscription has a cancellation date in the past
                     const isCancelled = sub.status === 'cancelled' || (sub.cancellationDate && new Date(sub.cancellationDate) < new Date());
                     if (!isCancelled) {
                         const amount = convertToViewCurrency(sub.cost, sub.currency);
+                        // Calculate monthly cost: yearly / 12, or just the amount for monthly
                         const monthlyCost = sub.frequency === 'yearly' ? amount / 12 : amount;
                         const catId = sub.category || 'general';
                         sums[catId] = (sums[catId] || 0) + monthlyCost;
                         total += monthlyCost;
                     }
                 });
+                // Filter out categories with zero spend
                 const data = categories.map(c => ({ id: c.id, label: c.label, value: sums[c.id], color: c.color, icon: c.icon })).filter(d => d.value > 0).sort((a,b) => b.value - a.value);
                 return { data, total };
             }, [subscriptions, viewCurrency, convertToViewCurrency]);
@@ -493,7 +673,7 @@
                     <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icon path={Paths.PieChart} size={20} className="text-yellow-400"/> Analysis</h1></div>
                     <div className="flex-1 overflow-y-auto p-6 pb-28 w-full box-border">
                         <div className="glass p-8 rounded-3xl mb-6 flex flex-col items-center">
-                            <h2 className="text-xs font-bold text-slate-400 uppercase text-center mb-6 tracking-widest">Monthly Spend ({viewCurrency})</h2>
+                            <h2 className="text-xs font-bold text-slate-400 uppercase text-center mb-6 tracking-widest">Est. Monthly Spend ({viewCurrency})</h2>
                             <DonutChart data={chartData.data} total={chartData.total} />
                         </div>
                         <div className="space-y-3">
@@ -501,10 +681,10 @@
                             {chartData.data.map(cat => (
                                 <div key={cat.id} className="glass p-3.5 rounded-2xl flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-slate-900 font-bold" style={{backgroundColor: cat.color}}><Icon path={Paths[cat.icon]} size={16} /></div>
+                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-slate-900 font-bold shrink-0" style={{backgroundColor: cat.color}}><Icon path={Paths[cat.icon]} size={16} /></div>
                                         <div><div className="text-sm font-bold text-white">{cat.label}</div><div className="text-[10px] text-slate-400 font-mono">{((cat.value / chartData.total) * 100).toFixed(1)}%</div></div>
                                     </div>
-                                    <div className="font-bold text-white">{formatMoney(cat.value, viewCurrency)}</div>
+                                    <div className="font-bold text-white shrink-0">{formatMoney(cat.value, viewCurrency)}</div>
                                 </div>
                             ))}
                         </div>
@@ -520,7 +700,36 @@
                 paymentMethod: '', cardBank: '', cardLast4: '', cancellationDate: '' 
             });
             const [smartInput, setSmartInput] = useState('');
-            const handleSmart = async () => { if(!smartInput) return; const res = await smartFill(smartInput); if(res) setLocalData({ ...localData, ...res }); };
+            const [error, setError] = useState(null);
+
+            const handleSmart = async () => { 
+                if(!smartInput) return; 
+                setError(null);
+                const res = await smartFill(smartInput); 
+                if(res) {
+                    setLocalData(prev => ({ 
+                        ...prev, 
+                        ...res, 
+                        // Ensure cost is string for input
+                        cost: res.cost ? String(res.cost) : '',
+                        // Redetect category based on new name
+                        category: res.name ? detectCategory(res.name) : prev.category
+                    }));
+                } else {
+                    setError("Could not parse data. Please check input and try again.");
+                }
+            };
+            
+            const handleSave = () => {
+                if (!localData.name || !localData.cost || parseFloat(localData.cost) <= 0) {
+                    setError("Name and Cost are required.");
+                    return;
+                }
+                onSave(localData); 
+                setLocalData({ name: '', cost: '', currency: 'TRY', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0], category: 'general', paymentMethod: '', cardBank: '', cardLast4: '', cancellationDate: '' }); 
+                setSmartInput('');
+                setError(null);
+            };
 
             return (
                 <div className="flex flex-col h-full bg-[#0f172a] w-full">
@@ -528,23 +737,29 @@
                     <div className="flex-1 overflow-y-auto p-5 pb-28 w-full box-border">
                         <div className="bg-gradient-to-br from-blue-900/40 to-slate-900/40 border border-blue-500/20 p-4 rounded-2xl mb-6">
                             <label className="text-[10px] font-bold text-blue-300 flex items-center gap-1.5 mb-2"><Icon path={Paths.Sparkles} size={12} className="text-yellow-500"/> AI SMART FILL</label>
-                            <div className="flex gap-2 items-center">
-                                <input className="flex-1 p-3 text-xs bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-yellow-400 placeholder:text-slate-600 max-w-full min-w-0" placeholder="e.g. Netflix 200 lira card garanti" value={smartInput} onChange={e => setSmartInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSmart()} />
-                                <button onClick={handleSmart} disabled={isSmartLoading} className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-xl disabled:opacity-50 flex-shrink-0 shadow-lg shadow-blue-900/50">
+                            <div className="flex gap-2 items-center min-w-0">
+                                <input className="flex-1 p-3 text-xs bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-yellow-400 placeholder:text-slate-600 box-border min-w-0" placeholder="e.g. Netflix 200 lira card garanti" value={smartInput} onChange={e => setSmartInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSmart()} />
+                                <button onClick={handleSmart} disabled={isSmartLoading} className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-xl disabled:opacity-50 flex-shrink-0 shadow-lg shadow-blue-900/50 active:scale-95">
                                     <Icon path={Paths.RefreshCw} size={16} className={isSmartLoading ? "animate-spin" : ""} />
                                 </button>
                             </div>
                         </div>
+                        
+                        {error && (
+                            <div className="bg-red-500/10 text-red-300 text-xs p-3 rounded-xl mb-4 flex items-center gap-2 border border-red-500/20 animate-in fade-in">
+                                <Icon path={Paths.AlertCircle} size={16} /> {error}
+                            </div>
+                        )}
 
                         <div className="space-y-4">
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Name</label><input className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition-all grid-item-fill" placeholder="Netflix..." value={localData.name} onChange={e => setLocalData({...localData, name: e.target.value, category: detectCategory(e.target.value)})} /></div>
+                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Name</label><input className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition-all box-border min-w-0" placeholder="Netflix..." value={localData.name} onChange={e => setLocalData({...localData, name: e.target.value, category: detectCategory(e.target.value)})} /></div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Cost</label><input type="number" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none grid-item-fill" placeholder="0.00" value={localData.cost} onChange={e => setLocalData({...localData, cost: e.target.value})} /></div>
-                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Currency</label><select className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none grid-item-fill" value={localData.currency} onChange={e => setLocalData({...localData, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Cost</label><input type="number" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border min-w-0" placeholder="0.00" value={localData.cost} onChange={e => setLocalData({...localData, cost: e.target.value})} /></div>
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Currency</label><select className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border min-w-0" value={localData.currency} onChange={e => setLocalData({...localData, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Frequency</label><div className="flex bg-slate-800 p-1 rounded-2xl mt-1 border border-slate-700 grid-item-fill">{frequencies.map(f => (<button type="button" key={f.id} onClick={() => setLocalData({...localData, frequency: f.id})} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${localData.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div></div>
-                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Start Date</label><input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none grid-item-fill" value={localData.startDate} onChange={e => setLocalData({...localData, startDate: e.target.value})} /></div>
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Frequency</label><div className="flex bg-slate-800 p-1 rounded-2xl mt-1 border border-slate-700 box-border min-w-0">{frequencies.map(f => (<button type="button" key={f.id} onClick={() => setLocalData({...localData, frequency: f.id})} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${localData.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div></div>
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Start Date</label><input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border min-w-0" value={localData.startDate} onChange={e => setLocalData({...localData, startDate: e.target.value})} /></div>
                             </div>
                             
                             {/* Cancellation Date (Optional) */}
@@ -556,16 +771,21 @@
                                     )}
                                 </label>
                                 <div className="relative">
-                                    <input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0 focus:ring-1 focus:ring-red-400 focus:border-red-400" value={localData.cancellationDate || ''} onChange={e => setLocalData({...localData, cancellationDate: e.target.value})} />
+                                    <input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border min-w-0 focus:ring-1 focus:ring-red-400 focus:border-red-400" value={localData.cancellationDate || ''} onChange={e => setLocalData({...localData, cancellationDate: e.target.value})} />
                                 </div>
                             </div>
 
-                            {/* Category Selector */}
+                            {/* Category Selector (FIXED: Responsive Grid) */}
                             <div>
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Category</label>
-                                <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">
+                                <div className="grid grid-cols-3 gap-3 mt-1 sm:grid-cols-6">
                                     {categories.map(cat => (
-                                        <button key={cat.id} onClick={() => setLocalData({...localData, category: cat.id})} className={`flex-shrink-0 px-3 py-2.5 rounded-xl border flex flex-col items-center gap-1 min-w-[60px] transition-all ${localData.category === cat.id ? 'bg-slate-700 border-yellow-400 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                                        <button 
+                                            type="button" 
+                                            key={cat.id} 
+                                            onClick={() => setLocalData({...localData, category: cat.id})} 
+                                            className={`w-full py-2.5 rounded-xl border flex flex-col items-center gap-1 transition-all ${localData.category === cat.id ? 'bg-slate-700 border-yellow-400 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                                        >
                                             <Icon path={Paths[cat.icon]} size={18} /> <span className="text-[9px] font-bold">{cat.label}</span>
                                         </button>
                                     ))}
@@ -574,7 +794,7 @@
 
                             <div>
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Payment Method</label>
-                                <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">
+                                <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border w-full">
                                     {paymentMethods.map(pm => (
                                         <button key={pm.id} onClick={() => setLocalData({...localData, paymentMethod: pm.id === localData.paymentMethod ? '' : pm.id})} className={`flex-shrink-0 px-4 py-3 rounded-xl border-2 flex flex-col items-center gap-1.5 min-w-[64px] transition-all ${localData.paymentMethod === pm.id ? 'bg-slate-700 border-blue-400 text-blue-400 ring-1 ring-blue-400/50' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
                                             <Icon path={Paths[pm.icon]} size={18} /><span className="text-[9px] font-bold">{pm.label}</span>
@@ -582,14 +802,14 @@
                                     ))}
                                 </div>
                                 {localData.paymentMethod === 'credit_card' && (
-                                    <div className="grid grid-cols-2 gap-3 mt-2 animate-in slide-in-from-top-1 box-border max-w-full">
+                                    <div className="grid grid-cols-2 gap-3 mt-2 animate-in slide-in-from-top-1 box-border w-full">
                                         <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Bank Name (e.g. Garanti)" value={localData.cardBank} onChange={e => setLocalData({...localData, cardBank: e.target.value})} />
                                         <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Last 4 Digits" maxLength={4} value={localData.cardLast4} onChange={e => setLocalData({...localData, cardLast4: e.target.value})} />
                                     </div>
                                 )}
                             </div>
 
-                            <button onClick={() => { onSave(localData); setLocalData({ name: '', cost: '', currency: 'TRY', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0], category: 'general', paymentMethod: '', cardBank: '', cardLast4: '', cancellationDate: '' }); setSmartInput(''); }} className="w-full bg-yellow-400 text-slate-900 font-extrabold py-3.5 rounded-2xl hover:bg-yellow-300 active:scale-95 transition-all flex items-center justify-center gap-2 mt-6 shadow-lg shadow-yellow-400/20 text-sm">
+                            <button onClick={handleSave} className="w-full bg-yellow-400 text-slate-900 font-extrabold py-3.5 rounded-2xl hover:bg-yellow-300 active:scale-95 transition-all flex items-center justify-center gap-2 mt-6 shadow-lg shadow-yellow-400/20 text-sm">
                                 <Icon path={Paths.Check} size={20} /> Save Membership
                             </button>
                         </div>
@@ -601,24 +821,42 @@
         const AIView = ({ subscriptions, onGenerate }) => {
             const [output, setOutput] = useState(null);
             const [loading, setLoading] = useState(false);
-            const run = async () => { setLoading(true); const res = await onGenerate(subscriptions); setOutput(res); setLoading(false); };
+            const run = async () => { 
+                if (subscriptions.length === 0) return;
+                setLoading(true); 
+                const res = await onGenerate(subscriptions); 
+                setOutput(res); 
+                setLoading(false); 
+            };
+            
+            const markdownBodyStyle = {
+                // Simple CSS for markdown rendering fidelity
+                lineHeight: '1.6',
+                'p': { marginBottom: '1rem' },
+                'h2': { fontSize: '1.25rem', fontWeight: 'bold', marginTop: '1.5rem', marginBottom: '0.75rem', color: '#facc15' },
+                'ul': { paddingLeft: '1.5rem', listStyleType: 'disc', marginBottom: '1rem' },
+                'li': { marginBottom: '0.5rem' }
+            };
+
             return (
-                <div className="flex flex-col h-full bg-[#0f172a]">
+                <div className="flex flex-col h-full bg-[#0f172a] w-full">
                     <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icon path={Paths.Sparkles} size={20} className="text-yellow-400"/> AI Advisor</h1></div>
                     <div className="flex-1 overflow-y-auto p-6 pb-28 flex flex-col items-center w-full box-border">
                         {!output && !loading && (
-                            <div className="text-center mt-12">
+                            <div className="text-center mt-12 animate-in fade-in">
                                 <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-700"><Icon path={Paths.Sparkles} size={40} className="text-yellow-400" /></div>
                                 <h2 className="font-bold text-xl text-white mb-2">Ready to Analyze?</h2>
                                 <p className="text-xs text-slate-400 mb-8 max-w-xs mx-auto leading-relaxed">I'll review your {subscriptions.length} subscriptions and roast your spending habits in Turkish.</p>
-                                <button onClick={run} className="bg-yellow-400 text-slate-900 font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 transition active:scale-95">Start Analysis</button>
+                                <button onClick={run} disabled={subscriptions.length === 0} className="bg-yellow-400 text-slate-900 font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 transition active:scale-95 disabled:opacity-50">
+                                    {subscriptions.length === 0 ? "Add Subs First" : "Start Analysis"}
+                                </button>
                             </div>
                         )}
                         {loading && <div className="text-center mt-24"><div className="w-12 h-12 border-4 border-slate-700 border-t-yellow-400 rounded-full animate-spin mx-auto mb-4"></div><p className="text-yellow-400 font-medium animate-pulse text-sm">Thinking...</p></div>}
                         {output && !loading && (
                             <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4">
-                                <div className="glass p-6 rounded-3xl shadow-lg border border-white/5 prose prose-sm prose-invert text-slate-300 whitespace-pre-wrap markdown-body leading-relaxed">{output}</div>
-                                <button onClick={() => setOutput(null)} className="w-full mt-4 py-3 text-slate-400 font-bold bg-slate-800 rounded-xl text-sm border border-slate-700">Clear</button>
+                                <div className="glass p-6 rounded-3xl shadow-lg border border-white/5 whitespace-pre-wrap text-slate-300" style={markdownBodyStyle}>{output}</div>
+                                <button onClick={() => setOutput(null)} className="w-full mt-4 py-3 text-slate-400 font-bold bg-slate-800 rounded-2xl text-sm border border-slate-700 active:scale-95">Clear</button>
                             </div>
                         )}
                     </div>
@@ -626,219 +864,281 @@
             );
         };
 
-        const SettingsView = ({ exchangeRate, setExchangeRate, accessKey, onLogout, viewCurrency, setViewCurrency }) => (
-            <div className="flex flex-col h-full bg-[#0f172a]">
-                <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white">Settings</h1></div>
+        const SettingsView = ({ exchangeRate, setExchangeRate, accessKey, onLogout, viewCurrency, setViewCurrency, userId }) => (
+            <div className="flex flex-col h-full bg-[#0f172a] w-full">
+                <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icon path={Paths.Settings} size={20} className="text-yellow-400"/> Settings</h1></div>
                 <div className="flex-1 overflow-y-auto p-5 pb-28 space-y-6 w-full box-border">
                     <div className="glass p-5 rounded-2xl">
+                         <label className="text-[10px] font-bold text-slate-500 uppercase mb-3 block">User ID</label>
+                         <code className="text-xs font-mono text-blue-400 font-bold tracking-wider break-all">{userId}</code>
+                    </div>
+
+                    <div className="glass p-5 rounded-2xl">
                         <label className="text-[10px] font-bold text-slate-500 uppercase mb-3 block">Display Currency</label>
-                        <div className="flex bg-slate-800 p-1 rounded-xl">
-                            {currencies.map(c => (<button key={c.id} onClick={() => setViewCurrency(c.id)} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${viewCurrency === c.id ? 'bg-slate-600 text-white shadow' : 'text-slate-400'}`}>{c.id}</button>))}
+                        <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
+                            {currencies.map(c => (<button key={c.id} onClick={() => setViewCurrency(c.id)} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${viewCurrency === c.id ? 'bg-slate-600 text-white shadow' : 'text-slate-400'}`}>{c.id}</button>))}
                         </div>
                     </div>
                     <div className="glass p-5 rounded-2xl">
                         <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Exchange Rate (1 USD)</label>
-                        <input type="number" value={exchangeRate} onChange={(e) => setExchangeRate(parseFloat(e.target.value))} className="w-full p-2.5 bg-slate-800 rounded-lg border-none text-white text-sm font-mono focus:border-yellow-400 outline-none min-w-0" />
+                        <input type="number" value={exchangeRate} onChange={(e) => setExchangeRate(parseFloat(e.target.value))} className="w-full p-2.5 bg-slate-800 rounded-lg border border-slate-700 text-white text-sm font-mono focus:ring-1 focus:ring-yellow-400 outline-none min-w-0" />
                     </div>
                     <div className="glass p-5 rounded-2xl">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Secret Key</label>
-                        <div className="bg-slate-800 p-3 rounded-lg flex justify-between items-center mb-3 border border-slate-700"><code className="text-xs font-mono text-yellow-400 font-bold tracking-wider">{accessKey}</code><button onClick={() => copyToClipboard(accessKey)} className="text-slate-400 hover:text-white"><Icon path={Paths.Share2} size={14} /></button></div>
-                        <div className="flex justify-center p-4 bg-white rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + window.location.pathname + '?key=' + accessKey)}`} alt="Login QR" className="w-32 h-32" /></div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Secret Key (Share for Access)</label>
+                        <div className="bg-slate-800 p-3 rounded-lg flex justify-between items-center mb-3 border border-slate-700"><code className="text-xs font-mono text-yellow-400 font-bold tracking-wider break-all">{accessKey}</code><button onClick={() => copyToClipboard(accessKey)} className="text-slate-400 hover:text-white active:scale-95 transition shrink-0"><Icon path={Paths.Share2} size={14} /></button></div>
+                        <div className="flex justify-center p-4 bg-white rounded-2xl shadow-inner"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + window.location.pathname + '?key=' + accessKey)}`} alt="Login QR" className="w-32 h-32" /></div>
                     </div>
-                    <button onClick={onLogout} className="w-full py-3 bg-red-500/10 text-red-400 border border-red-500/20 font-bold rounded-2xl text-sm">Log Out</button>
+                    <button onClick={onLogout} className="w-full py-3 bg-red-500/10 text-red-400 border border-red-500/20 font-bold rounded-2xl text-sm active:scale-95">Log Out</button>
                 </div>
             </div>
         );
 
         // --- MAIN APP SHELL ---
         const App = () => {
-          const [user, setUser] = useState(null);
-          const [accessKey, setAccessKey] = useState(safeGetItem('fb_tracker_key') || '');
-          const [subscriptions, setSubscriptions] = useState([]);
-          const [viewCurrency, setViewCurrency] = useState('TRY');
-          const [exchangeRate, setExchangeRate] = useState(DEFAULT_RATE);
-          const [loading, setLoading] = useState(true);
-          const [selectedDate, setSelectedDate] = useState(new Date());
-          const [activeTab, setActiveTab] = useState('home');
-          const [editingSub, setEditingSub] = useState(null);
-          const [toastMsg, setToastMsg] = useState('');
-          const [deleteId, setDeleteId] = useState(null);
-          const [isSmartLoading, setIsSmartLoading] = useState(false);
+            const [user, setUser] = useState(null);
+            const [accessKey, setAccessKey] = useState(safeGetItem('fb_tracker_key') || '');
+            const [subscriptions, setSubscriptions] = useState([]);
+            const [viewCurrency, setViewCurrency] = useState(safeGetItem('tracker_view_currency') || 'TRY');
+            const [exchangeRate, setExchangeRate] = useState(parseFloat(safeGetItem('tracker_usd_try_rate')) || DEFAULT_RATE);
+            const [loading, setLoading] = useState(true);
+            const [selectedDate, setSelectedDate] = useState(new Date());
+            const [activeTab, setActiveTab] = useState('home');
+            const [editingSub, setEditingSub] = useState(null);
+            const [toastMsg, setToastMsg] = useState('');
+            const [isSmartLoading, setIsSmartLoading] = useState(false);
 
-          useEffect(() => {
-            const p = new URLSearchParams(window.location.search);
-            if (p.get('key')) { safeSetItem('fb_tracker_key', p.get('key')); setAccessKey(p.get('key')); try{window.history.replaceState({},'',window.location.pathname)}catch(e){} }
-            const init = async () => { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token); else await signInAnonymously(auth); };
-            init();
-            return onAuthStateChanged(auth, u => { setUser(u); if(!accessKey) setLoading(false); });
-          }, [accessKey]);
+            // 1. Auth & Initialization
+            useEffect(() => {
+                const p = new URLSearchParams(window.location.search);
+                if (p.get('key')) { safeSetItem('fb_tracker_key', p.get('key')); setAccessKey(p.get('key')); try{window.history.replaceState({},'',window.location.pathname)}catch(e){} }
 
-          useEffect(() => { fetch('https://api.exchangerate-api.com/v4/latest/USD').then(r=>r.json()).then(d=> { if(d.rates?.TRY) setExchangeRate(d.rates.TRY); }).catch(console.error); }, []);
-
-          useEffect(() => {
-             if(!user || !accessKey) return;
-             const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'app_subscriptions', accessKey), s => {
-                 setSubscriptions(s.exists() ? s.data().items || [] : []);
-                 if(!s.exists()) setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_subscriptions', accessKey), { items: [], createdAt: serverTimestamp() });
-                 setLoading(false);
-             });
-             return () => unsub();
-          }, [user, accessKey]);
-
-          const showToast = (m) => { setToastMsg(m); setTimeout(() => setToastMsg(''), 3000); };
-          const handleJoin = (k) => { safeSetItem('fb_tracker_key', k); setAccessKey(k); };
-          const handleLogout = () => { safeRemoveItem('fb_tracker_key'); window.location.reload(); };
-          const convertToViewCurrency = (amt, curr) => curr === viewCurrency ? amt : (viewCurrency === 'TRY' ? amt * exchangeRate : amt / exchangeRate);
-
-          const calculatedTotal = useMemo(() => {
-             let total = 0;
-             const tm = selectedDate.getMonth();
-             subscriptions.forEach(s => {
-                 const isCancelled = s.status === 'cancelled' || (s.cancellationDate && new Date(s.cancellationDate) < new Date());
-                 if (isCancelled) return;
-
-                 if(s.prepaidUntil && new Date(s.prepaidUntil) > selectedDate) return;
-                 
-                 const start = new Date(s.startDate);
-                 if(start > selectedDate && start.getMonth() !== tm) return;
-
-                 const charge = (s.frequency === 'monthly') || (s.frequency === 'yearly' && start.getMonth() === tm);
-                 if(charge) total += convertToViewCurrency(s.cost, s.currency);
-             });
-             return formatMoney(total, viewCurrency);
-          }, [subscriptions, selectedDate, viewCurrency, exchangeRate]);
-
-          const activeCount = subscriptions.filter(s => {
-              const isCancelled = s.status === 'cancelled' || (s.cancellationDate && new Date(s.cancellationDate) < new Date());
-              return !isCancelled;
-          }).length;
-
-          const smartFill = async (text) => {
-             setIsSmartLoading(true);
-             const prompt = `Extract JSON from: "${text}". Keys: name, cost(number), currency(TRY/USD), frequency(monthly/yearly), category, paymentMethod(credit_card,apple,android,paypal,other), cardBank(if credit card), cardLast4(if credit card).`;
-             const res = await callGemini(prompt);
-             setIsSmartLoading(false);
-             try { return JSON.parse(res.replace(/```json/g, '').replace(/```/g, '').trim()); } catch(e) { showToast("AI Parse Error"); return null; }
-          };
-
-          const saveSub = async (data) => {
-             const newSub = { id: editingSub ? editingSub.id : crypto.randomUUID(), ...data, cost: parseFloat(data.cost) };
-             const newSubs = editingSub ? subscriptions.map(s => s.id === editingSub.id ? newSub : s) : [...subscriptions, newSub];
-             
-             setSubscriptions(newSubs); 
-             if(editingSub) setEditingSub(null); else setActiveTab('home');
-             showToast(editingSub ? "Updated!" : "Added!");
-
-             try {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_subscriptions', accessKey), { items: newSubs }, { merge: true });
-             } catch(e) {
-                console.error("Save failed", e);
-             }
-          };
-
-          const deleteSub = async () => {
-             if(!deleteId) return;
-             const newSubs = subscriptions.filter(s => s.id !== deleteId);
-             
-             setSubscriptions(newSubs); 
-             setDeleteId(null); 
-             setEditingSub(null);
-
-             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_subscriptions', accessKey), { items: newSubs }, { merge: true });
-          };
-
-          const generateAI = async (subs) => {
-             const list = subs.map(s => `${s.name} (${s.cost}${s.currency} ${s.frequency}, via ${s.paymentMethod||'?'})`).join(', ');
-             return await callGemini(`Advisor for Mumi (Fenerbahçe fan). Subs: [${list}]. Identify waste. Roast spending habits in Turkish. Health score/100.`);
-          };
-
-          if (!accessKey) return <AccessModal onJoin={handleJoin} />;
-
-          return (
-            <div className="h-full flex flex-col relative overflow-hidden bg-[#0f172a] w-full max-w-md mx-auto shadow-2xl">
-                <div className="flex-1 overflow-hidden relative w-full">
-                    {activeTab === 'home' && <TrackerView subscriptions={subscriptions} loading={loading} openEdit={setEditingSub} viewCurrency={viewCurrency} convertToViewCurrency={convertToViewCurrency} activeCount={activeCount} exchangeRate={exchangeRate} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calculatedTotal={calculatedTotal} />}
-                    {activeTab === 'add' && <AddView onSave={saveSub} currencies={currencies} frequencies={frequencies} smartFill={smartFill} isSmartLoading={isSmartLoading} />}
-                    {activeTab === 'analyze' && <AnalyzeView subscriptions={subscriptions} viewCurrency={viewCurrency} convertToViewCurrency={convertToViewCurrency} />}
-                    {activeTab === 'ai' && <AIView subscriptions={subscriptions} onGenerate={generateAI} />}
-                    {activeTab === 'settings' && <SettingsView exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} accessKey={accessKey} onLogout={handleLogout} viewCurrency={viewCurrency} setViewCurrency={setViewCurrency} />}
-                </div>
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (e) {
+                        console.error("Firebase Auth failed:", e);
+                    }
+                };
+                initAuth();
                 
-                {/* Modern Floating Bottom Nav */}
-                <div className="fixed bottom-0 left-0 right-0 p-4 pb-safe z-30 pointer-events-none flex justify-center">
-                    <div className="glass-panel w-full max-w-sm rounded-3xl flex justify-between items-center px-6 py-4 shadow-2xl pointer-events-auto bg-[#0f172a]/90">
-                        <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center ${activeTab === 'home' ? 'text-yellow-400' : 'text-slate-500'}`}><Icon path={Paths.Home} size={22} /></button>
-                        <button onClick={() => setActiveTab('analyze')} className={`flex flex-col items-center ${activeTab === 'analyze' ? 'text-yellow-400' : 'text-slate-500'}`}><Icon path={Paths.PieChart} size={22} /></button>
-                        <div className="relative -top-8">
-                            <button onClick={() => setActiveTab('add')} className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg border-4 border-[#0f172a] btn-3d ${activeTab === 'add' ? 'bg-white text-[#0f172a]' : 'bg-yellow-400 text-[#0f172a]'}`}>
-                                <Icon path={Paths.Plus} size={28} />
-                            </button>
-                        </div>
-                        <button onClick={() => setActiveTab('ai')} className={`flex flex-col items-center ${activeTab === 'ai' ? 'text-yellow-400' : 'text-slate-500'}`}><Icon path={Paths.Sparkles} size={22} /></button>
-                        <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center ${activeTab === 'settings' ? 'text-yellow-400' : 'text-slate-500'}`}><Icon path={Paths.Settings} size={22} /></button>
+                return onAuthStateChanged(auth, u => { setUser(u); if(!accessKey) setLoading(false); });
+            }, [accessKey]);
+
+            // 2. Data Persistence (Exchange Rate & View Currency)
+            useEffect(() => { safeSetItem('tracker_usd_try_rate', exchangeRate); }, [exchangeRate]);
+            useEffect(() => { safeSetItem('tracker_view_currency', viewCurrency); }, [viewCurrency]);
+
+            // 3. Exchange Rate Fetch
+            useEffect(() => { 
+                fetch('https://api.exchangerate-api.com/v4/latest/USD').then(r=>r.json()).then(d=> { 
+                    if(d.rates?.TRY) {
+                        setExchangeRate(d.rates.TRY);
+                        safeSetItem('tracker_usd_try_rate', d.rates.TRY);
+                    } 
+                }).catch(e => console.error("Could not fetch exchange rate:", e)); 
+            }, []);
+
+            // 4. Firestore Listener
+            useEffect(() => {
+                if(!user || !accessKey) return;
+                const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'app_subscriptions', accessKey), s => {
+                    const data = s.exists() ? s.data().items || [] : [];
+                    setSubscriptions(data);
+                    // Ensure the document exists if it didn't
+                    if(!s.exists()) setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_subscriptions', accessKey), { items: data, createdAt: serverTimestamp() }, { merge: true });
+                    setLoading(false);
+                }, (error) => {
+                    console.error("Firestore error:", error);
+                    // Optionally handle access denied/not found errors here
+                });
+                return () => unsub();
+            }, [user, accessKey]);
+
+            const showToast = (m) => { setToastMsg(m); setTimeout(() => setToastMsg(''), 3000); };
+            const handleJoin = (k) => { safeSetItem('fb_tracker_key', k); setAccessKey(k); };
+            const handleLogout = () => { safeRemoveItem('fb_tracker_key'); safeRemoveItem('tracker_view_currency'); safeRemoveItem('tracker_usd_try_rate'); window.location.reload(); };
+            const convertToViewCurrency = (amt, curr) => {
+                const amount = parseFloat(amt);
+                if (isNaN(amount) || amount === 0) return 0;
+                if (curr === viewCurrency) return amount;
+                if (curr === 'USD' && viewCurrency === 'TRY') return amount * exchangeRate;
+                if (curr === 'TRY' && viewCurrency === 'USD') return amount / exchangeRate;
+                return amount; // Should not happen with current setup
+            };
+
+            const calculatedTotal = useMemo(() => {
+                let total = 0;
+                const tm = selectedDate.getMonth();
+                const ty = selectedDate.getFullYear();
+
+                subscriptions.forEach(s => {
+                    // Check cancellation date
+                    const isCancelled = s.status === 'cancelled' || (s.cancellationDate && new Date(s.cancellationDate) < new Date());
+                    if (isCancelled) return;
+
+                    // Calculate charge date based on start date
+                    const start = new Date(s.startDate);
+                    let chargeMonth = start.getMonth();
+                    let chargeYear = start.getFullYear();
+
+                    if (s.frequency === 'yearly') {
+                        // Check if the yearly charge month matches the selected month/year
+                        if (chargeMonth !== tm || chargeYear > ty) return;
+                        if (chargeMonth === tm && chargeYear < ty) {
+                             // Find the next closest charge year to the selected year
+                            while (chargeYear < ty) chargeYear++;
+                            if (chargeYear !== ty) return; // Only charge if this is the charge year
+                        }
+                    } else if (s.frequency === 'monthly') {
+                        // Check if subscription started before or in the selected month
+                        if (start.getFullYear() > ty || (start.getFullYear() === ty && start.getMonth() > tm)) return;
+                    } else {
+                        return; // Unknown frequency
+                    }
+                    
+                    const charge = true;
+                    if(charge) total += convertToViewCurrency(s.cost, s.currency);
+                });
+                return formatMoney(total, viewCurrency);
+            }, [subscriptions, selectedDate, viewCurrency, exchangeRate]);
+
+            const activeCount = subscriptions.filter(s => {
+                const isCancelled = s.status === 'cancelled' || (s.cancellationDate && new Date(s.cancellationDate) < new Date());
+                return !isCancelled;
+            }).length;
+
+            const smartFill = async (text) => {
+                setIsSmartLoading(true);
+                const systemPrompt = `You are a helpful AI that extracts data from natural language about a recurring subscription. Respond ONLY with a single JSON object conforming to the schema. Do not add any extra text or markdown outside the JSON block.`;
+                
+                const payload = {
+                    contents: [{ parts: [{ text: `Extract subscription details from this text, focusing on the numerical cost and the payment method/bank/digits if provided: "${text}"` }] }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                "name": { "type": "STRING", "description": "Subscription name (e.g., 'Netflix', 'Spotify')." },
+                                "cost": { "type": "NUMBER", "description": "The numerical cost." },
+                                "currency": { "type": "STRING", "enum": ["TRY", "USD"], "description": "Currency of the cost." },
+                                "frequency": { "type": "STRING", "enum": ["monthly", "yearly"], "description": "Recurring period." },
+                                "paymentMethod": { "type": "STRING", "enum": ["credit_card", "apple", "android", "paypal", "other"], "description": "How the payment is made." },
+                                "cardBank": { "type": "STRING", "description": "Bank name if payment is 'credit_card'." },
+                                "cardLast4": { "type": "STRING", "description": "Last 4 digits of the card if payment is 'credit_card'." }
+                            }
+                        }
+                    }
+                };
+
+                const res = await callGemini(payload);
+                setIsSmartLoading(false);
+                try { 
+                    const jsonText = res.trim().replace(/^```json\n?|```$/g, '').trim();
+                    return JSON.parse(jsonText); 
+                } catch(e) { 
+                    console.error("AI Smart Fill Parse Error:", e);
+                    showToast("AI Parse Error. Try different wording."); 
+                    return null; 
+                }
+            };
+
+            const saveSub = async (data) => {
+                const newSub = { id: editingSub ? editingSub.id : crypto.randomUUID(), ...data, cost: parseFloat(data.cost), startDate: data.startDate || new Date().toISOString().split('T')[0] };
+                const newSubs = editingSub ? subscriptions.map(s => s.id === editingSub.id ? newSub : s) : [...subscriptions, newSub];
+                
+                setSubscriptions(newSubs); 
+                setEditingSub(null); 
+                showToast(editingSub ? "Updated!" : "Added!");
+
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_subscriptions', accessKey), { items: newSubs }, { merge: true });
+                } catch(e) {
+                    console.error("Save failed", e);
+                    showToast("Save to cloud failed.");
+                }
+            };
+
+            const deleteSub = async (idToDelete) => {
+                const newSubs = subscriptions.filter(s => s.id !== idToDelete);
+                setSubscriptions(newSubs); 
+                setEditingSub(null);
+                showToast("Deleted!");
+
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_subscriptions', accessKey), { items: newSubs }, { merge: true });
+                } catch(e) {
+                    console.error("Delete failed", e);
+                    showToast("Delete from cloud failed.");
+                }
+            };
+
+            const generateAI = async (subs) => {
+                if (subs.length === 0) return "You need to add some subscriptions first, Mumi!";
+
+                const list = subs.map(s => {
+                    const cost = s.cost ? `${s.cost}${s.currency}` : 'N/A';
+                    const freq = s.frequency || 'N/A';
+                    const pay = s.paymentMethod || '?';
+                    return `${s.name} (${cost} ${freq}, via ${pay})`;
+                }).join('; ');
+                
+                const prompt = `Act as Mumi's personal, highly judgmental financial advisor. Mumi is a passionate Fenerbahçe fan. Review this list of Mumi's active subscriptions: [${list}]. 
+                Provide a short, critical analysis of the spending habits (roasting is encouraged) and suggest one specific, clear subscription Mumi should cancel immediately to save money, explaining why in a humorous way. 
+                Write the entire response in Turkish.
+                Format the output cleanly with paragraphs and bullet points for readability.`;
+                
+                const payload = { contents: [{ parts: [{ text: prompt }] }] };
+                
+                const res = await callGemini(payload);
+                return res || "Analysis failed. The advisor seems to be on vacation (or rate limited).";
+            };
+
+            if (!accessKey) return <AccessModal onJoin={handleJoin} />;
+
+            return (
+                <div className="h-full flex flex-col relative overflow-hidden bg-[#0f172a] w-full max-w-md mx-auto shadow-2xl">
+                    <div className="flex-1 overflow-hidden relative w-full">
+                        {activeTab === 'home' && <TrackerView subscriptions={subscriptions} loading={loading} openEdit={setEditingSub} viewCurrency={viewCurrency} convertToViewCurrency={convertToViewCurrency} activeCount={activeCount} exchangeRate={exchangeRate} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calculatedTotal={calculatedTotal} />}
+                        {activeTab === 'add' && <AddView onSave={saveSub} currencies={currencies} frequencies={frequencies} smartFill={smartFill} isSmartLoading={isSmartLoading} />}
+                        {activeTab === 'analyze' && <AnalyzeView subscriptions={subscriptions} viewCurrency={viewCurrency} convertToViewCurrency={convertToViewCurrency} />}
+                        {activeTab === 'ai' && <AIView subscriptions={subscriptions} onGenerate={generateAI} />}
+                        {activeTab === 'settings' && <SettingsView exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} accessKey={accessKey} onLogout={handleLogout} viewCurrency={viewCurrency} setViewCurrency={setViewCurrency} userId={user?.uid || 'N/A'} />}
                     </div>
+                    
+                    {/* Modern Floating Bottom Nav */}
+                    <div className="fixed bottom-0 left-0 right-0 p-4 pb-safe z-30 pointer-events-none flex justify-center w-full">
+                        <div className="nav-panel w-full max-w-sm rounded-3xl flex justify-around items-center px-4 py-4 shadow-2xl pointer-events-auto border border-white/10">
+                            <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center ${activeTab === 'home' ? 'text-yellow-400' : 'text-slate-500 hover:text-white transition'}`}><Icon path={Paths.Home} size={22} /></button>
+                            <button onClick={() => setActiveTab('analyze')} className={`flex flex-col items-center ${activeTab === 'analyze' ? 'text-yellow-400' : 'text-slate-500 hover:text-white transition'}`}><Icon path={Paths.PieChart} size={22} /></button>
+                            <div className="relative -top-5">
+                                <button onClick={() => setActiveTab('add')} className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg border-4 border-[#0f172a] btn-3d ${activeTab === 'add' ? 'bg-white text-[#0f172a]' : 'bg-yellow-400 text-[#0f172a]'}`}>
+                                    <Icon path={Paths.Plus} size={28} />
+                                </button>
+                            </div>
+                            <button onClick={() => setActiveTab('ai')} className={`flex flex-col items-center ${activeTab === 'ai' ? 'text-yellow-400' : 'text-slate-500 hover:text-white transition'}`}><Icon path={Paths.Sparkles} size={22} /></button>
+                            <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center ${activeTab === 'settings' ? 'text-yellow-400' : 'text-slate-500 hover:text-white transition'}`}><Icon path={Paths.Settings} size={22} /></button>
+                        </div>
+                    </div>
+
+                    {/* Edit Modal (Sheet) */}
+                    {editingSub && (
+                        <SubscriptionEditModal 
+                            subscription={editingSub} 
+                            onSave={saveSub} 
+                            onDelete={deleteSub} 
+                            onClose={() => setEditingSub(null)} 
+                        />
+                    )}
+                    
+                    {/* Toast Notification */}
+                    {toastMsg && <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-yellow-400 text-slate-900 px-6 py-3 rounded-full shadow-2xl z-[70] flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-300 font-bold text-sm shadow-yellow-400/30">{toastMsg}</div>}
                 </div>
-
-                {/* Edit Modal (Sheet) */}
-                {editingSub && (
-                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-auto" style={{zIndex: 9999}}>
-                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setEditingSub(null)}></div>
-                      <div className="bg-[#1e293b] w-full max-w-md rounded-t-3xl p-6 shadow-2xl transform transition-transform duration-300 animate-in slide-in-from-bottom-10 h-auto max-h-[85vh] overflow-y-auto border-t border-white/10 pb-12 box-border mx-auto relative z-10">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-white">Edit Membership</h2>
-                            <button type="button" onClick={() => setEditingSub(null)} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:bg-slate-700 active:bg-slate-600 transition-colors cursor-pointer"><Icon path={Paths.X} size={18} /></button>
-                        </div>
-                        <div className="space-y-4">
-                            <input className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:border-yellow-400 outline-none box-border max-w-full min-w-0" value={editingSub.name} onChange={e => setEditingSub({...editingSub, name: e.target.value})} />
-                            <div className="grid grid-cols-2 gap-3"><input type="number" className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={editingSub.cost} onChange={e => setEditingSub({...editingSub, cost: e.target.value})} /><select className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={editingSub.currency} onChange={e => setEditingSub({...editingSub, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
-                            <div className="flex gap-3"><div className="flex bg-slate-800 p-1 rounded-2xl flex-1 border border-slate-700 box-border max-w-full">{frequencies.map(f => (<button type="button" key={f.id} onClick={() => setEditingSub({...editingSub, frequency: f.id})} className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${editingSub.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div><input type="date" className="flex-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-xs outline-none box-border max-w-full min-w-0" value={editingSub.startDate} onChange={e => setEditingSub({...editingSub, startDate: e.target.value})} /></div>
-                            
-                            {/* Cancellation Date (Edit) */}
-                            <div>
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1 flex justify-between items-center">
-                                    <span>Cancel Date (Optional)</span>
-                                    {editingSub.cancellationDate && (
-                                        <button type="button" onClick={() => setEditingSub({...editingSub, cancellationDate: ''})} className="text-[10px] text-red-400 font-bold uppercase hover:text-red-300">Clear</button>
-                                    )}
-                                </label>
-                                <input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0 focus:ring-1 focus:ring-red-400 focus:border-red-400" value={editingSub.cancellationDate || ''} onChange={e => setEditingSub({...editingSub, cancellationDate: e.target.value})} />
-                            </div>
-
-                            {/* Category Edit */}
-                            <div>
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Category</label>
-                                <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">
-                                    {categories.map(cat => (
-                                        <button type="button" key={cat.id} onClick={() => setEditingSub({...editingSub, category: cat.id})} className={`flex-shrink-0 px-3 py-2.5 rounded-xl border flex flex-col items-center gap-1 min-w-[64px] transition-all ${editingSub.category === cat.id ? 'bg-slate-700 border-yellow-400 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                                            <Icon path={Paths[cat.icon]} size={18} /> <span className="text-[9px] font-bold">{cat.label}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Payment</label>
-                                <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">{paymentMethods.map(pm => (<button type="button" key={pm.id} onClick={() => setEditingSub({...editingSub, paymentMethod: pm.id === editingSub.paymentMethod ? '' : pm.id})} className={`flex-shrink-0 px-4 py-3 rounded-xl border flex flex-col items-center gap-1.5 min-w-[64px] transition-all ${editingSub.paymentMethod === pm.id ? 'bg-slate-700 border-blue-400 text-blue-400 ring-1 ring-blue-400/50' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><Icon path={Paths[pm.icon]} size={18} /><span className="text-[9px] font-bold">{pm.label}</span></button>))}</div>
-                                {editingSub.paymentMethod === 'credit_card' && (
-                                    <div className="grid grid-cols-2 gap-3 mt-2 box-border max-w-full">
-                                        <input className="w-full p-3 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Bank Name" value={editingSub.cardBank || ''} onChange={e => setEditingSub({...editingSub, cardBank: e.target.value})} />
-                                        <input className="w-full p-3 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Last 4" maxLength={4} value={editingSub.cardLast4 || ''} onChange={e => setEditingSub({...editingSub, cardLast4: e.target.value})} />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex items-center justify-between pt-2"><label className="text-xs font-medium text-slate-400">Subscription Status</label><button type="button" onClick={() => setEditingSub({...editingSub, status: editingSub.status === 'active' ? 'cancelled' : 'active'})} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${editingSub.status === 'active' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>{editingSub.status === 'active' ? 'ACTIVE' : 'CANCELLED'}</button></div>
-                            <div className="flex gap-3 pt-4">
-                                <button type="button" onClick={() => setDeleteId(editingSub.id)} className="p-4 bg-red-500/10 text-red-400 rounded-2xl border border-red-500/20 hover:bg-red-500/20 transition"><Icon path={Paths.Trash2} size={20} /></button>
-                                <button type="button" onClick={() => saveSub(editingSub)} className="flex-1 bg-yellow-400 text-slate-900 font-extrabold py-3.5 rounded-2xl hover:bg-yellow-300 transition text-sm cursor-pointer shadow-lg shadow-yellow-400/20 active:scale-95">Update Membership</button>
-                            </div>
-                        </div>
-                      </div>
-                    </div>
-                )}
-                {deleteId && <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"><div className="glass p-6 rounded-3xl w-full max-w-sm text-center border border-white/10 mx-auto"><h3 className="text-lg font-bold text-white mb-6">Delete Membership?</h3><div className="flex gap-3"><button type="button" onClick={() => setDeleteId(null)} className="flex-1 py-3 bg-slate-700 text-white font-bold rounded-2xl text-sm">Cancel</button><button type="button" onClick={deleteSub} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm">Delete</button></div></div></div>}
-                {toastMsg && <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-yellow-400 text-slate-900 px-6 py-3 rounded-full shadow-2xl z-[70] flex items-center gap-2 animate-float font-bold text-sm shadow-yellow-400/20"><Icon path={Paths.Check} size={14} />{toastMsg}</div>}
-            </div>
-          );
+            );
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
