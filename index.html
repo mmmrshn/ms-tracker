@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <!-- PWA Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0f172a">
@@ -32,7 +31,7 @@
         html, body {
             height: 100%;
             width: 100%;
-            overflow: hidden; /* Prevent body scroll */
+            overflow: hidden;
             background-color: var(--fb-navy);
         }
 
@@ -40,10 +39,8 @@
             font-family: 'Manrope', sans-serif; 
             color: #f8fafc;
             -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: none;
         }
         
-        /* Glassmorphism */
         .glass {
             background: rgba(30, 41, 59, 0.6);
             backdrop-filter: blur(12px);
@@ -56,6 +53,7 @@
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            /* Extra large padding for Notch + Status Bar */
             padding-top: max(1.5rem, env(safe-area-inset-top)); 
             padding-bottom: 1rem;
         }
@@ -64,7 +62,6 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .snap-y { scroll-snap-type: y mandatory; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        .pt-safe { padding-top: env(safe-area-inset-top); }
         
         .btn-3d {
             transition: all 0.1s;
@@ -76,23 +73,23 @@
             box-shadow: 0px 0px 0px 0px #ca8a04;
         }
         
-        input, select { 
-            color-scheme: dark; 
-        }
+        input, select { color-scheme: dark; }
         input::placeholder { color: #64748b; }
     </style>
 </head>
 <body>
-    <div id="root" class="h-full w-full overflow-hidden"></div>
+    <div id="root" class="h-full w-full"></div>
 
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
         import { getFirestore, collection, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
-        // --- ICONS ---
-        const IconBase = ({ size = 24, children, ...props }) => (
+        // --- ROBUST ICON COMPONENT ---
+        // Forces size via style AND attributes AND utility classes
+        const Icon = ({ path, size = 24, className = "" }) => (
             <svg 
+                xmlns="http://www.w3.org/2000/svg"
                 width={size} 
                 height={size} 
                 viewBox="0 0 24 24" 
@@ -101,45 +98,45 @@
                 strokeWidth="2" 
                 strokeLinecap="round" 
                 strokeLinejoin="round" 
-                style={{ width: size, height: size, minWidth: size, minHeight: size }}
-                {...props} 
+                className={`shrink-0 ${className}`}
+                style={{ width: `${size}px`, height: `${size}px`, minWidth: `${size}px`, minHeight: `${size}px` }}
             >
-                {children}
+                {path}
             </svg>
         );
 
-        const Icons = {
-            Home: (p) => <IconBase {...p}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></IconBase>,
-            PieChart: (p) => <IconBase {...p}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></IconBase>,
-            Plus: (p) => <IconBase {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></IconBase>,
-            Check: (p) => <IconBase {...p}><polyline points="20 6 9 17 4 12"/></IconBase>,
-            Settings: (p) => <IconBase {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></IconBase>,
-            Trash2: (p) => <IconBase {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></IconBase>,
-            X: (p) => <IconBase {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></IconBase>,
-            Sparkles: (p) => <IconBase {...p}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></IconBase>,
-            Filter: (p) => <IconBase {...p}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></IconBase>,
-            RefreshCw: (p) => <IconBase {...p}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></IconBase>,
-            Globe: (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></IconBase>,
-            Share2: (p) => <IconBase {...p}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></IconBase>,
-            TrendingUp: (p) => <IconBase {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></IconBase>,
-            AlertCircle: (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></IconBase>,
+        const Paths = {
+            Home: <><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
+            PieChart: <><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></>,
+            Plus: <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
+            Check: <polyline points="20 6 9 17 4 12"/>,
+            Settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></>,
+            Trash2: <><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></>,
+            X: <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
+            Sparkles: <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>,
+            Filter: <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>,
+            RefreshCw: <><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></>,
+            Globe: <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></>,
+            Share2: <><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></>,
+            TrendingUp: <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></>,
+            AlertCircle: <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>,
             
             // Payment Icons
-            CreditCard: (p) => <IconBase {...p}><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></IconBase>,
-            Apple: ({size=24, ...p}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" style={{ width: size, height: size, minWidth: size, minHeight: size }} {...p}><path d="M17.276 14.531c-.021 2.373 2.073 3.176 2.162 3.22-1.802 2.585-3.693 2.193-4.524 2.193-1.129 0-2.31-.699-2.926-.699-.679 0-1.688.683-2.775.683-2.222 0-4.697-2.147-4.697-5.32 0-2.812 1.83-4.28 3.593-4.28 1.125 0 2.02.771 2.653.771.633 0 1.637-.811 2.921-.811.479 0 2.223.041 3.299 1.583-2.651 1.29-2.194 4.382.294 2.66zm-2.122-6.953c.969-1.161.812-2.783.812-2.783-1.63.063-2.922 1.077-3.328 2.218-.363 1.008.016 2.639.016 2.639 1.691.132 2.5-.914 2.5-.914z"/></svg>,
-            Android: ({size=24, ...p}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" style={{ width: size, height: size, minWidth: size, minHeight: size }} {...p}><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993.0001.5511-.4486.9997-.9996.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993 0 .5511-.4486.9997-.9996.9997m11.4045-6.02l1.9973-3.459a.415.415 0 00-.152-.5676.4155.4155 0 00-.568.1524l-2.026 3.5095a12.2133 12.2133 0 00-5.132-1.1265 12.21 12.21 0 00-5.132 1.1265L4.8432 5.4473a.4162.4162 0 00-.568-.1524.415.415 0 00-.152.5676l1.9973 3.459C2.6888 11.1866.3436 14.6586.3436 18.667h23.3128c0-4.0084-2.3452-7.4804-5.7287-9.3456"/></svg>,
-            Paypal: (p) => <IconBase {...p}><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><path d="M12 15h.01"/></IconBase>,
-            Briefcase: (p) => <IconBase {...p}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></IconBase>,
-            Clapperboard: (p) => <IconBase {...p}><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4"/><path d="M14 12h4"/><path d="M6 6v12"/><path d="M18 6v12"/></IconBase>,
-            Zap: (p) => <IconBase {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></IconBase>,
-            Heart: (p) => <IconBase {...p}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></IconBase>,
-            ShoppingBag: (p) => <IconBase {...p}><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></IconBase>,
-            Layers: (p) => <IconBase {...p}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></IconBase>,
+            CreditCard: <><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></>,
+            Apple: <path d="M17.276 14.531c-.021 2.373 2.073 3.176 2.162 3.22-1.802 2.585-3.693 2.193-4.524 2.193-1.129 0-2.31-.699-2.926-.699-.679 0-1.688.683-2.775.683-2.222 0-4.697-2.147-4.697-5.32 0-2.812 1.83-4.28 3.593-4.28 1.125 0 2.02.771 2.653.771.633 0 1.637-.811 2.921-.811.479 0 2.223.041 3.299 1.583-2.651 1.29-2.194 4.382.294 2.66zm-2.122-6.953c.969-1.161.812-2.783.812-2.783-1.63.063-2.922 1.077-3.328 2.218-.363 1.008.016 2.639.016 2.639 1.691.132 2.5-.914 2.5-.914z"/>,
+            Android: <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993.0001.5511-.4486.9997-.9996.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9996.4482.9996.9993 0 .5511-.4486.9997-.9996.9997m11.4045-6.02l1.9973-3.459a.415.415 0 00-.152-.5676.4155.4155 0 00-.568.1524l-2.026 3.5095a12.2133 12.2133 0 00-5.132-1.1265 12.21 12.21 0 00-5.132 1.1265L4.8432 5.4473a.4162.4162 0 00-.568-.1524.415.415 0 00-.152.5676l1.9973 3.459C2.6888 11.1866.3436 14.6586.3436 18.667h23.3128c0-4.0084-2.3452-7.4804-5.7287-9.3456"/>,
+            Paypal: <><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><path d="M12 15h.01"/></>,
+            Briefcase: <><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></>,
+            Clapperboard: <><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4"/><path d="M14 12h4"/><path d="M6 6v12"/><path d="M18 6v12"/></>,
+            Zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>,
+            Heart: <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>,
+            ShoppingBag: <><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></>,
+            Layers: <><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></>,
         };
 
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // --- FIREBASE CONFIG (Mumi's) ---
+        // --- FIREBASE CONFIG (YOURS) ---
         const firebaseConfig = {
           apiKey: "AIzaSyCbwSFzMzJuNsJFROkKTvNXLwmt7lI3m4w",
           authDomain: "ms-tracker-9bee7.firebaseapp.com",
@@ -160,7 +157,7 @@
 
         // --- GEMINI API ---
         const callGemini = async (prompt, signal = null) => {
-            const apiKey = "";
+            const apiKey = ""; 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             try {
                 const response = await fetch(url, {
@@ -171,10 +168,7 @@
                 });
                 const data = await response.json();
                 return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
-            } catch (e) {
-                if (e.name !== 'AbortError') console.error("Gemini Error:", e);
-                return null;
-            }
+            } catch (e) { return null; }
         };
 
         // --- CONFIG ---
@@ -183,20 +177,20 @@
         const currencies = [{ id: 'USD', symbol: '$' }, { id: 'TRY', symbol: '₺' }];
         
         const paymentMethods = [
-            { id: 'credit_card', label: 'Card', icon: Icons.CreditCard },
-            { id: 'apple', label: 'Apple', icon: Icons.Apple },
-            { id: 'android', label: 'Android', icon: Icons.Android },
-            { id: 'paypal', label: 'PayPal', icon: Icons.Paypal },
-            { id: 'other', label: 'Other', icon: Icons.Layers },
+            { id: 'credit_card', label: 'Card', icon: 'CreditCard' },
+            { id: 'apple', label: 'Apple', icon: 'Apple' },
+            { id: 'android', label: 'Android', icon: 'Android' },
+            { id: 'paypal', label: 'PayPal', icon: 'Paypal' },
+            { id: 'other', label: 'Other', icon: 'Layers' },
         ];
 
         const categories = [
-          { id: 'entertainment', label: 'Ent.', icon: Icons.Clapperboard, color: '#facc15', keywords: ['netflix', 'spotify', 'disney', 'hulu', 'youtube', 'hbo', 'music', 'game'] },
-          { id: 'work', label: 'Work', icon: Icons.Briefcase, color: '#38bdf8', keywords: ['adobe', 'office', 'slack', 'zoom', 'linkedin', 'github', 'gpt'] },
-          { id: 'utilities', label: 'Utils', icon: Icons.Zap, color: '#94a3b8', keywords: ['icloud', 'google', 'dropbox', 'aws', 'internet', 'vpn'] },
-          { id: 'health', label: 'Health', icon: Icons.Heart, color: '#f87171', keywords: ['gym', 'fitness', 'strava', 'headspace'] },
-          { id: 'shopping', label: 'Shop', icon: Icons.ShoppingBag, color: '#c084fc', keywords: ['amazon', 'prime', 'mart'] },
-          { id: 'general', label: 'Gen', icon: Icons.Layers, color: '#cbd5e1', keywords: [] },
+          { id: 'entertainment', label: 'Ent.', icon: 'Clapperboard', color: '#facc15', keywords: ['netflix', 'spotify', 'disney', 'hulu', 'youtube', 'hbo', 'music', 'game'] },
+          { id: 'work', label: 'Work', icon: 'Briefcase', color: '#38bdf8', keywords: ['adobe', 'office', 'slack', 'zoom', 'linkedin', 'github', 'gpt'] },
+          { id: 'utilities', label: 'Utils', icon: 'Zap', color: '#94a3b8', keywords: ['icloud', 'google', 'dropbox', 'aws', 'internet', 'vpn'] },
+          { id: 'health', label: 'Health', icon: 'Heart', color: '#f87171', keywords: ['gym', 'fitness', 'strava', 'headspace'] },
+          { id: 'shopping', label: 'Shop', icon: 'ShoppingBag', color: '#c084fc', keywords: ['amazon', 'prime', 'mart'] },
+          { id: 'general', label: 'Gen', icon: 'Layers', color: '#cbd5e1', keywords: [] },
         ];
 
         const formatMoney = (amount, currency) => new Intl.NumberFormat('en-US', { style: 'currency', currency: currency, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
@@ -208,9 +202,7 @@
         const isApproaching = (startDate, frequency, cancelDate) => {
           const today = new Date();
           const start = new Date(startDate);
-          
           if(cancelDate && new Date(cancelDate) < today) return false;
-
           let nextDate = new Date(start);
           if (frequency === 'monthly') {
             nextDate.setFullYear(today.getFullYear(), today.getMonth(), start.getDate());
@@ -219,9 +211,7 @@
             nextDate.setFullYear(today.getFullYear());
             if (nextDate < today) nextDate.setFullYear(nextDate.getFullYear() + 1);
           }
-          
           if(cancelDate && nextDate > new Date(cancelDate)) return false;
-
           const diffDays = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24)); 
           return diffDays >= 0 && diffDays <= 3;
         };
@@ -256,7 +246,7 @@
             <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[#0f172a]">
               <div className="w-full max-w-sm glass rounded-3xl p-8 text-center border border-white/10">
                 <div className="w-14 h-14 bg-yellow-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(250,204,21,0.4)]">
-                  <Icons.Home size={28} className="text-[#0f172a]" />
+                  <Icon path={Paths.Home} size={28} className="text-[#0f172a]" />
                 </div>
                 <h1 className="text-2xl font-extrabold text-white mb-2 tracking-tight">Mumi Tracker Pro</h1>
                 <p className="text-sm text-slate-400 mb-8 font-medium">Secure Access Vault</p>
@@ -388,85 +378,77 @@
             }, [subscriptions, filterMethod, sortType, viewCurrency, exchangeRate]);
 
             return (
-                <div className="flex flex-col h-full bg-[#0f172a] overflow-hidden w-full"> 
-                    <div className="glass-panel px-5 py-3 flex justify-between items-center z-10 sticky top-0 w-full box-border">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center text-[#002d72] font-bold shadow-lg shrink-0">
-                                <Icons.TrendingUp size={18} />
+                <div className="flex flex-col h-full bg-[#0f172a] w-full"> 
+                    <div className="glass-panel px-6 flex justify-between items-center z-10 sticky top-0 w-full box-border">
+                         <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center text-[#002d72] font-bold shadow-lg shrink-0">
+                                <Icon path={Paths.TrendingUp} size={20} />
                             </div>
-                            <div className="min-w-0">
-                                <h1 className="font-bold text-base leading-tight text-white truncate">Mumi's Tracker</h1>
-                                <div className="text-[10px] text-blue-200 truncate">{activeCount} Active • 1$ = {exchangeRate.toFixed(1)}₺</div>
+                            <div className="min-w-0 flex-1">
+                                <h1 className="font-bold text-lg text-white truncate leading-tight">Mumi's Tracker</h1>
+                                <div className="text-[11px] text-blue-200 truncate">{activeCount} Active • 1$ = {exchangeRate.toFixed(1)}₺</div>
                             </div>
                         </div>
-                        <div className="flex gap-2 shrink-0">
-                            <button onClick={() => setFilterOpen(!filterOpen)} className={`p-1.5 rounded-full transition ${filterOpen ? 'bg-yellow-400 text-[#002d72]' : 'bg-white/10 hover:bg-white/20'}`}>
-                                <Icons.Filter size={18} />
-                            </button>
-                        </div>
+                        <button onClick={() => setFilterOpen(!filterOpen)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${filterOpen ? 'bg-yellow-400 text-slate-900' : 'bg-white/5 text-slate-300 border border-white/10'}`}>
+                            <Icon path={Paths.Filter} size={18} />
+                        </button>
                     </div>
-                    
                     {filterOpen && (
-                        <div className="bg-[#1e293b] border-b border-white/5 p-4 animate-in slide-in-from-top-2 z-0">
-                            <div className="mb-3">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Sort By</label>
+                        <div className="bg-[#1e293b] border-b border-white/5 p-4 animate-in slide-in-from-top-2 z-0 w-full box-border">
+                            <div className="mb-4">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-2">Sort</label>
                                 <div className="flex gap-2">
-                                    {[{id:'cost-high', l:'$$$'}, {id:'cost-low', l:'$'}, {id:'name', l:'A-Z'}].map(o => (
-                                        <button key={o.id} onClick={() => setSortType(o.id)} className={`px-3 py-1 text-xs rounded-full border ${sortType === o.id ? 'bg-[#002d72] text-white border-[#002d72]' : 'bg-white text-gray-500 border-gray-200'}`}>{o.l}</button>
+                                    {[{id:'cost-high', l:'High Price'}, {id:'cost-low', l:'Low Price'}, {id:'name', l:'A-Z'}].map(o => (
+                                        <button key={o.id} onClick={() => setSortType(o.id)} className={`px-4 py-1.5 text-xs font-bold rounded-full border transition-all ${sortType === o.id ? 'bg-yellow-400 text-slate-900 border-yellow-400' : 'bg-transparent text-slate-400 border-slate-600'}`}>{o.l}</button>
                                     ))}
                                 </div>
                             </div>
                             <div>
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Filter Payment</label>
-                                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar box-border max-w-full">
-                                    <button onClick={() => setFilterMethod('all')} className={`flex-shrink-0 px-3 py-1 text-xs rounded-full border ${filterMethod === 'all' ? 'bg-[#002d72] text-white border-[#002d72]' : 'bg-white text-gray-500 border-gray-200'}`}>All</button>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-2">Filter Payment</label>
+                                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar w-full">
+                                    <button onClick={() => setFilterMethod('all')} className={`flex-shrink-0 px-4 py-1.5 text-xs font-bold rounded-full border ${filterMethod === 'all' ? 'bg-yellow-400 text-slate-900 border-yellow-400' : 'bg-transparent text-slate-400 border-slate-600'}`}>All</button>
                                     {paymentMethods.map(pm => (
-                                        <button key={pm.id} onClick={() => setFilterMethod(pm.id)} className={`flex-shrink-0 px-3 py-1 text-xs rounded-full border flex items-center gap-1 ${filterMethod === pm.id ? 'bg-[#002d72] text-white border-[#002d72]' : 'bg-white text-gray-500 border-gray-200'}`}>
-                                            <pm.icon size={14} /> {pm.label}
+                                        <button key={pm.id} onClick={() => setFilterMethod(pm.id)} className={`flex-shrink-0 px-4 py-1.5 text-xs font-bold rounded-full border flex items-center gap-1.5 ${filterMethod === pm.id ? 'bg-yellow-400 text-slate-900 border-yellow-400' : 'bg-transparent text-slate-400 border-slate-600'}`}>
+                                            <Icon path={Paths[pm.icon]} size={14} /> {pm.label}
                                         </button>
                                     ))}
                                 </div>
                             </div>
                         </div>
                     )}
-
                     <TimeWheel selectedDate={selectedDate} onChange={setSelectedDate} totalCost={calculatedTotal} />
-                    
-                    <div className="flex-1 overflow-y-auto p-4 pb-28 w-full box-border">
-                        {loading ? <div className="flex justify-center pt-20"><Icons.RefreshCw className="animate-spin text-[#002d72]" size={24} /></div> : 
-                         processedSubs.length === 0 ? <div className="text-center pt-24 opacity-40"><div className="mx-auto w-16 h-16 text-slate-600 flex justify-center mb-4"><Icons.CreditCard size={64} /></div><p className="text-sm font-medium text-slate-400">No memberships found.</p></div> : (
-                          <div className="grid gap-2.5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="flex-1 overflow-y-auto p-4 pb-32 w-full box-border">
+                        {loading ? <div className="space-y-3"><SkeletonCard/><SkeletonCard/><SkeletonCard/></div> : 
+                         processedSubs.length === 0 ? <div className="text-center pt-24 opacity-40"><div className="mx-auto w-16 h-16 text-slate-600 flex justify-center mb-4"><Icon path={Paths.CreditCard} size={64} /></div><p className="text-sm font-medium text-slate-400">No memberships found.</p></div> : (
+                          <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                             {processedSubs.map(sub => {
                               const displayCost = convertToViewCurrency(sub.cost, sub.currency);
                               const isActive = sub.status === 'active';
                               const approaching = isActive && isApproaching(sub.startDate, sub.frequency, sub.cancellationDate);
                               const CatData = categories.find(c => c.id === sub.category) || categories[5];
                               const PayData = paymentMethods.find(p => p.id === sub.paymentMethod);
-                              
                               let payText = PayData ? PayData.label : '';
-                              if (sub.paymentMethod === 'credit_card' && sub.cardBank) {
-                                  payText = `${sub.cardBank} ${sub.cardLast4 ? '• '+sub.cardLast4 : ''}`;
-                              }
+                              if (sub.paymentMethod === 'credit_card' && sub.cardBank) payText = `${sub.cardBank} ${sub.cardLast4 ? '• '+sub.cardLast4 : ''}`;
                               
                               const isCancelled = sub.status === 'cancelled' || (sub.cancellationDate && new Date(sub.cancellationDate) < new Date());
 
                               return (
-                                <div key={sub.id} onClick={() => openEdit(sub)} className={`relative group bg-white rounded-xl p-3.5 shadow-sm border transition active:scale-[0.98] cursor-pointer overflow-hidden ${approaching ? 'border-yellow-400 ring-2 ring-yellow-400/20' : 'border-gray-100'} ${isCancelled ? 'opacity-50 grayscale' : ''}`}>
-                                  {approaching && !isCancelled && <div className="absolute top-0 right-0 bg-yellow-400 text-[#002d72] text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg z-10 flex items-center gap-1"><Icons.AlertCircle size={8} /> SOON</div>}
-                                  <div className="flex justify-between items-start">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-base font-bold text-white shadow-sm shrink-0`} style={{backgroundColor: CatData.color}}><CatData.icon size={16} /></div>
+                                <div key={sub.id} onClick={() => openEdit(sub)} className={`relative glass rounded-2xl p-4 transition active:scale-[0.98] ${approaching ? 'border-yellow-400/50 ring-1 ring-yellow-400/20' : ''} ${isCancelled ? 'opacity-50 grayscale' : ''}`}>
+                                  {approaching && !isCancelled && <div className="absolute top-0 right-0 bg-yellow-400 text-slate-900 text-[9px] font-extrabold px-2 py-1 rounded-bl-xl rounded-tr-xl z-10 flex items-center gap-1">SOON</div>}
+                                  <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-3.5 min-w-0">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-slate-900 shadow-lg font-bold shrink-0`} style={{backgroundColor: isActive ? CatData.color : '#475569'}}><Icon path={Paths[CatData.icon]} size={18} /></div>
                                         <div className="min-w-0">
-                                            <h3 className="font-bold text-gray-800 text-sm leading-none mb-1 truncate">{sub.name}</h3>
-                                            <div className="flex flex-wrap gap-1">
-                                                <span className="text-[9px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 capitalize">{sub.frequency}</span>
-                                                {PayData && <span className="text-[9px] bg-blue-50 px-1.5 py-0.5 rounded text-[#002d72] flex items-center gap-0.5 truncate"><PayData.icon size={10} /> {payText}</span>}
+                                            <h3 className="font-bold text-white text-[15px] leading-tight mb-1 truncate">{sub.name}</h3>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-slate-300 capitalize font-medium">{sub.frequency}</span>
+                                                {PayData && <span className="text-[10px] bg-blue-500/20 px-1.5 py-0.5 rounded text-blue-200 flex items-center gap-1 border border-blue-500/20 truncate"><Icon path={Paths[PayData.icon]} size={10} /> {payText}</span>}
                                             </div>
                                         </div>
                                     </div>
                                     <div className="text-right shrink-0">
-                                        <div className="font-bold text-sm text-[#002d72]">{formatMoney(displayCost, viewCurrency)}</div>
-                                        <div className={`text-[9px] ${approaching ? 'text-yellow-600 font-bold' : 'text-gray-400'}`}>{new Date(sub.startDate).getDate()}{['st','nd','rd'][((new Date(sub.startDate).getDate()+90)%100-10)%10-1]||'th'}</div>
+                                        <div className="font-bold text-lg text-white tracking-tight">{formatMoney(displayCost, viewCurrency)}</div>
+                                        <div className={`text-[10px] font-bold ${approaching && !isCancelled ? 'text-yellow-400' : 'text-slate-500'}`}>{new Date(sub.startDate).getDate()}{['st','nd','rd'][((new Date(sub.startDate).getDate()+90)%100-10)%10-1]||'th'}</div>
                                     </div>
                                   </div>
                                 </div>
@@ -499,27 +481,22 @@
             }, [subscriptions, viewCurrency, convertToViewCurrency]);
 
             return (
-                <div className="flex flex-col h-full bg-[#0f172a]">
-                    <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icons.PieChart size={20} className="text-yellow-400"/> Analysis</h1></div>
+                <div className="flex flex-col h-full bg-[#0f172a] w-full">
+                    <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icon path={Paths.PieChart} size={20} className="text-yellow-400"/> Analysis</h1></div>
                     <div className="flex-1 overflow-y-auto p-6 pb-28 w-full box-border">
                         <div className="glass p-8 rounded-3xl mb-6 flex flex-col items-center">
                             <h2 className="text-xs font-bold text-slate-400 uppercase text-center mb-6 tracking-widest">Monthly Spend ({viewCurrency})</h2>
                             <DonutChart data={chartData.data} total={chartData.total} />
                         </div>
                         <div className="space-y-3">
-                            <h3 className="text-xs font-bold text-slate-500 uppercase ml-1">Categories</h3>
+                            <h3 className="text-xs font-bold text-slate-500 uppercase ml-1 mb-2">Breakdown</h3>
                             {chartData.data.map(cat => (
-                                <div key={cat.id} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between">
+                                <div key={cat.id} className="glass p-3.5 rounded-2xl flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{backgroundColor: cat.color}}>
-                                            <cat.icon size={16} />
-                                        </div>
-                                        <div>
-                                            <div className="text-sm font-bold text-gray-800">{cat.label}</div>
-                                            <div className="text-[10px] text-gray-400">{((cat.value / chartData.total) * 100).toFixed(1)}%</div>
-                                        </div>
+                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-slate-900 font-bold" style={{backgroundColor: cat.color}}><Icon path={Paths[cat.icon]} size={16} /></div>
+                                        <div><div className="text-sm font-bold text-white">{cat.label}</div><div className="text-[10px] text-slate-400 font-mono">{((cat.value / chartData.total) * 100).toFixed(1)}%</div></div>
                                     </div>
-                                    <div className="font-bold text-[#002d72]">{formatMoney(cat.value, viewCurrency)}</div>
+                                    <div className="font-bold text-white">{formatMoney(cat.value, viewCurrency)}</div>
                                 </div>
                             ))}
                         </div>
@@ -535,36 +512,32 @@
                 paymentMethod: '', cardBank: '', cardLast4: '', cancellationDate: '' 
             });
             const [smartInput, setSmartInput] = useState('');
-
-            const handleSmart = async () => {
-                if(!smartInput) return;
-                const res = await smartFill(smartInput);
-                if(res) setLocalData({ ...localData, ...res });
-            };
+            const handleSmart = async () => { if(!smartInput) return; const res = await smartFill(smartInput); if(res) setLocalData({ ...localData, ...res }); };
 
             return (
-                <div className="flex flex-col h-full bg-[#0f172a]">
+                <div className="flex flex-col h-full bg-[#0f172a] w-full">
                     <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white">Add Membership</h1></div>
                     <div className="flex-1 overflow-y-auto p-5 pb-28 w-full box-border">
                         <div className="bg-gradient-to-br from-blue-900/40 to-slate-900/40 border border-blue-500/20 p-4 rounded-2xl mb-6">
-                            <label className="text-[10px] font-bold text-blue-300 flex items-center gap-1.5 mb-2"><Icons.Sparkles size={12} className="text-yellow-500"/> AI SMART FILL</label>
+                            <label className="text-[10px] font-bold text-blue-300 flex items-center gap-1.5 mb-2"><Icon path={Paths.Sparkles} size={12} className="text-yellow-500"/> AI SMART FILL</label>
                             <div className="flex gap-2 items-center">
                                 <input className="flex-1 p-3 text-xs bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-yellow-400 placeholder:text-slate-600 max-w-full min-w-0" placeholder="e.g. Netflix 200 lira card garanti" value={smartInput} onChange={e => setSmartInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSmart()} />
                                 <button onClick={handleSmart} disabled={isSmartLoading} className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-xl disabled:opacity-50 flex-shrink-0 shadow-lg shadow-blue-900/50">
-                                    {isSmartLoading ? <Icons.RefreshCw size={16} className="animate-spin" /> : <Icons.Sparkles size={16} />}
+                                    {isSmartLoading ? <Icon path={Paths.RefreshCw} size={16} className="animate-spin" /> : <Icon path={Paths.Sparkles} size={16} />}
                                 </button>
                             </div>
                         </div>
 
                         <div className="space-y-4">
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Name</label><input className="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition-all box-border max-w-full min-w-0" placeholder="Netflix..." value={localData.name} onChange={e => setLocalData({...localData, name: e.target.value, category: detectCategory(e.target.value)})} /></div>
+                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Name</label><input className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 outline-none transition-all box-border max-w-full min-w-0" placeholder="Netflix..." value={localData.name} onChange={e => setLocalData({...localData, name: e.target.value, category: detectCategory(e.target.value)})} /></div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Cost</label><input type="number" className="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" placeholder="0.00" value={localData.cost} onChange={e => setLocalData({...localData, cost: e.target.value})} /></div>
-                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Currency</label><select className="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={localData.currency} onChange={e => setLocalData({...localData, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Cost</label><input type="number" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" placeholder="0.00" value={localData.cost} onChange={e => setLocalData({...localData, cost: e.target.value})} /></div>
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Currency</label><select className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={localData.currency} onChange={e => setLocalData({...localData, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
                             </div>
                             <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Frequency</label><div className="flex bg-slate-800 p-1 rounded-2xl mt-1 border border-slate-700 box-border max-w-full">{frequencies.map(f => (<button key={f.id} onClick={() => setLocalData({...localData, frequency: f.id})} className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${localData.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div></div>
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Start Date</label><input type="date" className="w-full mt-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={localData.startDate} onChange={e => setLocalData({...localData, startDate: e.target.value})} /></div>
+                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Start Date</label><input type="date" className="w-full mt-1 p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={localData.startDate} onChange={e => setLocalData({...localData, startDate: e.target.value})} /></div>
                             
+                            {/* Cancellation Date (Optional) */}
                             <div>
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1 flex justify-between">
                                     <span>Cancel Date (Optional)</span>
@@ -579,7 +552,7 @@
                                 <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">
                                     {categories.map(cat => (
                                         <button key={cat.id} onClick={() => setLocalData({...localData, category: cat.id})} className={`flex-shrink-0 px-3 py-2.5 rounded-xl border flex flex-col items-center gap-1 min-w-[60px] transition-all ${localData.category === cat.id ? 'bg-slate-700 border-yellow-400 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                                            <cat.icon size={18} /> <span className="text-[9px] font-bold">{cat.label}</span>
+                                            <Icon path={Paths[cat.icon]} size={18} /> <span className="text-[9px] font-bold">{cat.label}</span>
                                         </button>
                                     ))}
                                 </div>
@@ -590,20 +563,20 @@
                                 <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">
                                     {paymentMethods.map(pm => (
                                         <button key={pm.id} onClick={() => setLocalData({...localData, paymentMethod: pm.id === localData.paymentMethod ? '' : pm.id})} className={`flex-shrink-0 px-4 py-3 rounded-xl border-2 flex flex-col items-center gap-1.5 min-w-[64px] transition-all ${localData.paymentMethod === pm.id ? 'bg-slate-700 border-blue-400 text-blue-400 ring-1 ring-blue-400/50' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                                            <pm.icon size={18} /><span className="text-[9px] font-bold">{pm.label}</span>
+                                            <Icon path={Paths[pm.icon]} size={18} /><span className="text-[9px] font-bold">{pm.label}</span>
                                         </button>
                                     ))}
                                 </div>
                                 {localData.paymentMethod === 'credit_card' && (
                                     <div className="grid grid-cols-2 gap-3 mt-2 animate-in slide-in-from-top-1 box-border max-w-full">
                                         <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Bank Name" value={localData.cardBank} onChange={e => setLocalData({...localData, cardBank: e.target.value})} />
-                                        <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Last 4" maxLength={4} value={localData.cardLast4} onChange={e => setLocalData({...localData, cardLast4: e.target.value})} />
+                                        <input className="w-full p-2.5 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Last 4 Digits" maxLength={4} value={localData.cardLast4} onChange={e => setLocalData({...localData, cardLast4: e.target.value})} />
                                     </div>
                                 )}
                             </div>
 
                             <button onClick={() => { onSave(localData); setLocalData({ name: '', cost: '', currency: 'TRY', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0], category: 'general', paymentMethod: '', cardBank: '', cardLast4: '', cancellationDate: '' }); setSmartInput(''); }} className="w-full bg-yellow-400 text-slate-900 font-extrabold py-3.5 rounded-2xl hover:bg-yellow-300 active:scale-95 transition-all flex items-center justify-center gap-2 mt-6 shadow-lg shadow-yellow-400/20 text-sm">
-                                <Icons.Check size={20} /> Save Membership
+                                <Icon path={Paths.Check} size={20} /> Save Membership
                             </button>
                         </div>
                     </div>
@@ -617,11 +590,11 @@
             const run = async () => { setLoading(true); const res = await onGenerate(subscriptions); setOutput(res); setLoading(false); };
             return (
                 <div className="flex flex-col h-full bg-[#0f172a]">
-                    <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icons.Sparkles size={20} className="text-yellow-400"/> AI Advisor</h1></div>
+                    <div className="glass-panel px-6 py-4 pt-safe"><h1 className="font-bold text-lg text-white flex items-center gap-2"><Icon path={Paths.Sparkles} size={20} className="text-yellow-400"/> AI Advisor</h1></div>
                     <div className="flex-1 overflow-y-auto p-6 pb-28 flex flex-col items-center w-full box-border">
                         {!output && !loading && (
                             <div className="text-center mt-12">
-                                <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-700"><Icons.Sparkles size={40} className="text-yellow-400" /></div>
+                                <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-700"><Icon path={Paths.Sparkles} size={40} className="text-yellow-400" /></div>
                                 <h2 className="font-bold text-xl text-white mb-2">Ready to Analyze?</h2>
                                 <p className="text-xs text-slate-400 mb-8 max-w-xs mx-auto leading-relaxed">I'll review your {subscriptions.length} subscriptions and roast your spending habits in Turkish.</p>
                                 <button onClick={run} className="bg-yellow-400 text-slate-900 font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 transition active:scale-95">Start Analysis</button>
@@ -655,7 +628,7 @@
                     </div>
                     <div className="glass p-5 rounded-2xl">
                         <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Secret Key</label>
-                        <div className="bg-slate-800 p-3 rounded-lg flex justify-between items-center mb-3 border border-slate-700"><code className="text-xs font-mono text-yellow-400 font-bold tracking-wider">{accessKey}</code><button onClick={() => copyToClipboard(accessKey)} className="text-slate-400 hover:text-white"><Icons.Share2 size={14} /></button></div>
+                        <div className="bg-slate-800 p-3 rounded-lg flex justify-between items-center mb-3 border border-slate-700"><code className="text-xs font-mono text-yellow-400 font-bold tracking-wider">{accessKey}</code><button onClick={() => copyToClipboard(accessKey)} className="text-slate-400 hover:text-white"><Icon path={Paths.Share2} size={14} /></button></div>
                         <div className="flex justify-center p-4 bg-white rounded-xl"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + window.location.pathname + '?key=' + accessKey)}`} alt="Login QR" className="w-32 h-32" /></div>
                     </div>
                     <button onClick={onLogout} className="w-full py-3 bg-red-500/10 text-red-400 border border-red-500/20 font-bold rounded-2xl text-sm">Log Out</button>
@@ -757,8 +730,8 @@
           if (!accessKey) return <AccessModal onJoin={handleJoin} />;
 
           return (
-            <div className="h-full flex flex-col relative overflow-hidden bg-[#0f172a]">
-                <div className="flex-1 overflow-hidden relative">
+            <div className="h-full flex flex-col relative overflow-hidden bg-[#0f172a] w-full max-w-md mx-auto shadow-2xl">
+                <div className="flex-1 overflow-hidden relative w-full">
                     {activeTab === 'home' && <TrackerView subscriptions={subscriptions} loading={loading} openEdit={setEditingSub} viewCurrency={viewCurrency} convertToViewCurrency={convertToViewCurrency} activeCount={activeCount} exchangeRate={exchangeRate} selectedDate={selectedDate} setSelectedDate={setSelectedDate} calculatedTotal={calculatedTotal} />}
                     {activeTab === 'add' && <AddView onSave={saveSub} currencies={currencies} frequencies={frequencies} smartFill={smartFill} isSmartLoading={isSmartLoading} />}
                     {activeTab === 'analyze' && <AnalyzeView subscriptions={subscriptions} viewCurrency={viewCurrency} convertToViewCurrency={convertToViewCurrency} />}
@@ -767,17 +740,17 @@
                 </div>
                 
                 {/* Modern Floating Bottom Nav */}
-                <div className="fixed bottom-0 left-0 right-0 p-4 pb-safe z-30 pointer-events-none">
-                    <div className="glass-panel mx-auto max-w-sm rounded-3xl flex justify-between items-center px-6 py-4 shadow-2xl pointer-events-auto bg-[#0f172a]/90">
-                        <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center ${activeTab === 'home' ? 'text-yellow-400' : 'text-slate-500'}`}><Icons.Home size={22} /></button>
-                        <button onClick={() => setActiveTab('analyze')} className={`flex flex-col items-center ${activeTab === 'analyze' ? 'text-yellow-400' : 'text-slate-500'}`}><Icons.PieChart size={22} /></button>
+                <div className="fixed bottom-0 left-0 right-0 p-4 pb-safe z-30 pointer-events-none flex justify-center">
+                    <div className="glass-panel w-full max-w-sm rounded-3xl flex justify-between items-center px-6 py-4 shadow-2xl pointer-events-auto bg-[#0f172a]/90">
+                        <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center ${activeTab === 'home' ? 'text-yellow-400' : 'text-slate-500'}`}><Icon path={Paths.Home} size={22} /></button>
+                        <button onClick={() => setActiveTab('analyze')} className={`flex flex-col items-center ${activeTab === 'analyze' ? 'text-yellow-400' : 'text-slate-500'}`}><Icon path={Paths.PieChart} size={22} /></button>
                         <div className="relative -top-8">
                             <button onClick={() => setActiveTab('add')} className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg border-4 border-[#0f172a] btn-3d ${activeTab === 'add' ? 'bg-white text-[#0f172a]' : 'bg-yellow-400 text-[#0f172a]'}`}>
-                                <Icons.Plus size={28} strokeWidth={3} />
+                                <Icon path={Paths.Plus} size={28} />
                             </button>
                         </div>
-                        <button onClick={() => setActiveTab('ai')} className={`flex flex-col items-center ${activeTab === 'ai' ? 'text-yellow-400' : 'text-slate-500'}`}><Icons.Sparkles size={22} /></button>
-                        <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center ${activeTab === 'settings' ? 'text-yellow-400' : 'text-slate-500'}`}><Icons.Settings size={22} /></button>
+                        <button onClick={() => setActiveTab('ai')} className={`flex flex-col items-center ${activeTab === 'ai' ? 'text-yellow-400' : 'text-slate-500'}`}><Icon path={Paths.Sparkles} size={22} /></button>
+                        <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center ${activeTab === 'settings' ? 'text-yellow-400' : 'text-slate-500'}`}><Icon path={Paths.Settings} size={22} /></button>
                     </div>
                 </div>
 
@@ -785,11 +758,11 @@
                 {editingSub && (
                     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
                       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto transition-opacity" onClick={() => setEditingSub(null)}></div>
-                      <div className="bg-[#1e293b] w-full max-w-md rounded-t-3xl p-6 shadow-2xl pointer-events-auto transform transition-transform duration-300 animate-in slide-in-from-bottom-10 h-auto max-h-[85vh] overflow-y-auto border-t border-white/10 pb-12 box-border">
-                        <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-white">Edit Membership</h2><button onClick={() => setEditingSub(null)} className="p-2 bg-slate-800 rounded-full text-slate-400"><Icons.X size={18} /></button></div>
+                      <div className="bg-[#1e293b] w-full max-w-md rounded-t-3xl p-6 shadow-2xl pointer-events-auto transform transition-transform duration-300 animate-in slide-in-from-bottom-10 h-auto max-h-[85vh] overflow-y-auto border-t border-white/10 pb-12 box-border mx-auto">
+                        <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-white">Edit Membership</h2><button onClick={() => setEditingSub(null)} className="p-2 bg-slate-800 rounded-full text-slate-400"><Icon path={Paths.X} size={18} /></button></div>
                         <div className="space-y-4">
-                            <input className="w-full p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:border-yellow-400 outline-none box-border max-w-full min-w-0" value={editingSub.name} onChange={e => setEditingSub({...editingSub, name: e.target.value})} />
-                            <div className="grid grid-cols-2 gap-3"><input type="number" className="w-full p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={editingSub.cost} onChange={e => setEditingSub({...editingSub, cost: e.target.value})} /><select className="w-full p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={editingSub.currency} onChange={e => setEditingSub({...editingSub, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
+                            <input className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm focus:border-yellow-400 outline-none box-border max-w-full min-w-0" value={editingSub.name} onChange={e => setEditingSub({...editingSub, name: e.target.value})} />
+                            <div className="grid grid-cols-2 gap-3"><input type="number" className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={editingSub.cost} onChange={e => setEditingSub({...editingSub, cost: e.target.value})} /><select className="w-full p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-white text-sm outline-none box-border max-w-full min-w-0" value={editingSub.currency} onChange={e => setEditingSub({...editingSub, currency: e.target.value})}>{currencies.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}</select></div>
                             <div className="flex gap-3"><div className="flex bg-slate-800 p-1 rounded-2xl flex-1 border border-slate-700 box-border max-w-full">{frequencies.map(f => (<button key={f.id} onClick={() => setEditingSub({...editingSub, frequency: f.id})} className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${editingSub.frequency === f.id ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}>{f.label}</button>))}</div><input type="date" className="flex-1 p-3 bg-slate-800 border border-slate-700 rounded-2xl text-white text-xs outline-none box-border max-w-full min-w-0" value={editingSub.startDate} onChange={e => setEditingSub({...editingSub, startDate: e.target.value})} /></div>
                             
                             {/* Cancellation Date (Edit) */}
@@ -806,7 +779,7 @@
                                 <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">
                                     {categories.map(cat => (
                                         <button key={cat.id} onClick={() => setEditingSub({...editingSub, category: cat.id})} className={`flex-shrink-0 px-3 py-2.5 rounded-xl border flex flex-col items-center gap-1 min-w-[60px] transition-all ${editingSub.category === cat.id ? 'bg-slate-700 border-yellow-400 text-yellow-400' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                                            <cat.icon size={18} /> <span className="text-[9px] font-bold">{cat.label}</span>
+                                            <Icon path={Paths[cat.icon]} size={18} /> <span className="text-[9px] font-bold">{cat.label}</span>
                                         </button>
                                     ))}
                                 </div>
@@ -814,7 +787,7 @@
 
                             <div>
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide ml-1">Payment</label>
-                                <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">{paymentMethods.map(pm => (<button key={pm.id} onClick={() => setEditingSub({...editingSub, paymentMethod: pm.id === editingSub.paymentMethod ? '' : pm.id})} className={`flex-shrink-0 px-4 py-3 rounded-xl border flex flex-col items-center gap-1.5 min-w-[64px] transition-all ${editingSub.paymentMethod === pm.id ? 'bg-slate-700 border-blue-400 text-blue-400 ring-1 ring-blue-400/50' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><pm.icon size={18} /><span className="text-[9px] font-bold">{pm.label}</span></button>))}</div>
+                                <div className="flex gap-2 overflow-x-auto pb-2 mt-1 no-scrollbar box-border max-w-full">{paymentMethods.map(pm => (<button key={pm.id} onClick={() => setEditingSub({...editingSub, paymentMethod: pm.id === editingSub.paymentMethod ? '' : pm.id})} className={`flex-shrink-0 px-4 py-3 rounded-xl border flex flex-col items-center gap-1.5 min-w-[64px] transition-all ${editingSub.paymentMethod === pm.id ? 'bg-slate-700 border-blue-400 text-blue-400 ring-1 ring-blue-400/50' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><Icon path={Paths[pm.icon]} size={18} /><span className="text-[9px] font-bold">{pm.label}</span></button>))}</div>
                                 {editingSub.paymentMethod === 'credit_card' && (
                                     <div className="grid grid-cols-2 gap-3 mt-2 box-border max-w-full">
                                         <input className="w-full p-3 bg-slate-800/50 rounded-xl border border-slate-700 focus:border-blue-400 text-white text-xs outline-none min-w-0" placeholder="Bank Name" value={editingSub.cardBank || ''} onChange={e => setEditingSub({...editingSub, cardBank: e.target.value})} />
@@ -823,13 +796,13 @@
                                 )}
                             </div>
                             <div className="flex items-center justify-between pt-2"><label className="text-xs font-medium text-slate-400">Subscription Status</label><button onClick={() => setEditingSub({...editingSub, status: editingSub.status === 'active' ? 'cancelled' : 'active'})} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${editingSub.status === 'active' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>{editingSub.status === 'active' ? 'ACTIVE' : 'CANCELLED'}</button></div>
-                            <div className="flex gap-3 pt-4"><button onClick={() => setDeleteId(editingSub.id)} className="p-4 bg-red-500/10 text-red-400 rounded-2xl border border-red-500/20 hover:bg-red-500/20 transition"><Icons.Trash2 size={20} /></button><button onClick={() => saveSub(editingSub)} className="flex-1 bg-yellow-400 text-slate-900 font-extrabold py-3.5 rounded-2xl hover:bg-yellow-300 transition text-sm">Update Membership</button></div>
+                            <div className="flex gap-3 pt-4"><button onClick={() => setDeleteId(editingSub.id)} className="p-4 bg-red-500/10 text-red-400 rounded-2xl border border-red-500/20 hover:bg-red-500/20 transition"><Icon path={Paths.Trash2} size={20} /></button><button onClick={() => saveSub(editingSub)} className="flex-1 bg-yellow-400 text-slate-900 font-extrabold py-3.5 rounded-2xl hover:bg-yellow-300 transition text-sm">Update Membership</button></div>
                         </div>
                       </div>
                     </div>
                 )}
-                {deleteId && <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"><div className="glass p-6 rounded-3xl w-full max-w-sm text-center border border-white/10"><h3 className="text-lg font-bold text-white mb-6">Delete Membership?</h3><div className="flex gap-3"><button onClick={() => setDeleteId(null)} className="flex-1 py-3 bg-slate-700 text-white font-bold rounded-2xl text-sm">Cancel</button><button onClick={deleteSub} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm">Delete</button></div></div></div>}
-                {toastMsg && <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-yellow-400 text-slate-900 px-6 py-3 rounded-full shadow-2xl z-[70] flex items-center gap-2 animate-float font-bold text-sm shadow-yellow-400/20"><Icons.Check size={14} />{toastMsg}</div>}
+                {deleteId && <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"><div className="glass p-6 rounded-3xl w-full max-w-sm text-center border border-white/10 mx-auto"><h3 className="text-lg font-bold text-white mb-6">Delete Membership?</h3><div className="flex gap-3"><button onClick={() => setDeleteId(null)} className="flex-1 py-3 bg-slate-700 text-white font-bold rounded-2xl text-sm">Cancel</button><button onClick={deleteSub} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm">Delete</button></div></div></div>}
+                {toastMsg && <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-yellow-400 text-slate-900 px-6 py-3 rounded-full shadow-2xl z-[70] flex items-center gap-2 animate-float font-bold text-sm shadow-yellow-400/20"><Icon path={Paths.Check} size={14} />{toastMsg}</div>}
             </div>
           );
         };
