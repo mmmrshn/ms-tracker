@@ -351,13 +351,13 @@
                 const itemHeight = 64;
                 
                 // Calculate the index of the item currently aligned at the *top* of the scroll container
-                // This works well with snap-start and smooth scrolling removed.
                 const index = Math.round(scrollRef.current.scrollTop / itemHeight); 
 
                 if (months[index]) {
                     const newDate = months[index];
-                    // Use a timeout to ensure the scroll snap has settled before calling onChange
+                    // VULNERABILITY FIX: Check scrollRef.current again inside setTimeout
                     setTimeout(() => {
+                         if (!scrollRef.current) return; 
                          const settledIndex = Math.round(scrollRef.current.scrollTop / itemHeight);
                          if (settledIndex === index) {
                              if (newDate.getMonth() !== selectedDate.getMonth() || newDate.getFullYear() !== selectedDate.getFullYear()) {
@@ -392,6 +392,7 @@
                     <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
                     <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
                     
+                    {/* Highlighted section - Total cost remains right-aligned */}
                     <div className="absolute top-1/2 left-0 right-0 h-[64px] -mt-[32px] bg-white/5 border-y border-white/5 backdrop-blur-[1px] z-0 flex items-center justify-between px-6">
                         <div className="absolute right-6 text-right">
                             <span className="text-[10px] text-yellow-400/60 font-bold uppercase tracking-widest block mb-0.5">Est. Total</span>
@@ -409,10 +410,11 @@
                             return (
                                 <div 
                                     key={i} 
-                                    className={`h-[64px] w-full flex items-center px-6 snap-start transition-all duration-200 ${isSelected ? 'opacity-100 pl-4 scale-105' : 'opacity-30 scale-95 blur-[0.5px]'}`}
+                                    // CHANGE: Added justify-center to center month/year display
+                                    className={`h-[64px] w-full flex items-center justify-center snap-start transition-all duration-200 ${isSelected ? 'opacity-100 scale-100' : 'opacity-30 scale-95 blur-[0.5px]'}`}
                                     onClick={() => scrollToMonth(i)}
                                 >
-                                    <div className="text-left">
+                                    <div className="text-center"> {/* CHANGE: Centered text content */}
                                         <div className={`font-bold text-xl ${isSelected ? 'text-white' : 'text-slate-300'}`}>{date.toLocaleString('default', { month: 'long' })}</div>
                                         <div className="text-[10px] font-mono text-slate-400 tracking-widest">{date.getFullYear()}</div>
                                     </div>
