@@ -35,7 +35,7 @@
             color: #f8fafc;
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior-y: none;
-            overflow-x: hidden; /* Prevent horizontal scroll */
+            overflow-x: hidden;
         }
         
         /* Glassmorphism */
@@ -46,13 +46,13 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
         
+        /* UPDATED: Increased padding for safe area to prevent text overlapping on iPhone */
         .glass-panel {
             background: rgba(15, 23, 42, 0.98); 
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            /* Increased padding for iPhone Notch/Status Bar */
-            padding-top: max(1.5rem, env(safe-area-inset-top)); 
+            padding-top: max(3.5rem, calc(env(safe-area-inset-top) + 1rem)); 
             padding-bottom: 1rem;
         }
 
@@ -60,7 +60,6 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .snap-y { scroll-snap-type: y mandatory; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        /* .pt-safe handled in glass-panel now */
         
         .btn-3d {
             transition: all 0.1s;
@@ -135,7 +134,7 @@
 
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // --- FIREBASE CONFIG (Mumi's) ---
+        // --- FIREBASE CONFIG ---
         const firebaseConfig = {
           apiKey: "AIzaSyCbwSFzMzJuNsJFROkKTvNXLwmt7lI3m4w",
           authDomain: "ms-tracker-9bee7.firebaseapp.com",
@@ -205,7 +204,7 @@
           const today = new Date();
           const start = new Date(startDate);
           
-          if(cancelDate && new Date(cancelDate) < today) return false; // Already cancelled/ended
+          if(cancelDate && new Date(cancelDate) < today) return false;
 
           let nextDate = new Date(start);
           if (frequency === 'monthly') {
@@ -216,7 +215,7 @@
             if (nextDate < today) nextDate.setFullYear(nextDate.getFullYear() + 1);
           }
           
-          if(cancelDate && nextDate > new Date(cancelDate)) return false; // Next billing is after cancellation
+          if(cancelDate && nextDate > new Date(cancelDate)) return false;
 
           const diffDays = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24)); 
           return diffDays >= 0 && diffDays <= 3;
@@ -270,6 +269,7 @@
         const TimeWheel = ({ selectedDate, onChange, totalCost }) => {
           const scrollRef = useRef(null);
           const [months, setMonths] = useState([]);
+          
           useEffect(() => {
             const now = new Date();
             const ms = [];
@@ -279,29 +279,52 @@
             }
             setMonths(ms);
           }, []);
+
+          // UPDATED: Ensure alignment and prevent half-transparency issue
           useEffect(() => {
-            if (scrollRef.current && months.length > 0) scrollRef.current.scrollTop = 12 * 64;
+            if (scrollRef.current && months.length > 0) {
+                 // 64px item height * 12 (index of current month)
+                scrollRef.current.scrollTop = 12 * 64; 
+            }
           }, [months.length]);
+
           const handleScroll = () => {
             if (!scrollRef.current) return;
-            const index = Math.round(scrollRef.current.scrollTop / 64);
-            if (months[index]) onChange(months[index]);
+            const itemHeight = 64;
+            const index = Math.round(scrollRef.current.scrollTop / itemHeight);
+            if (months[index] && (months[index].getTime() !== selectedDate.getTime())) {
+                 onChange(months[index]);
+            }
           };
+
           return (
-            <div className="relative h-44 w-full overflow-hidden flex flex-col items-center justify-center shrink-0 select-none">
+            <div className="relative h-[192px] w-full overflow-hidden flex flex-col items-center justify-center shrink-0 select-none">
               <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
               <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0f172a] to-transparent z-10 pointer-events-none"></div>
-              <div className="absolute top-1/2 left-0 right-0 h-[64px] -mt-[32px] bg-white/5 border-y border-white/5 backdrop-blur-[2px] z-0 flex items-center justify-between px-6">
+              
+              {/* Highlight Box centered perfectly */}
+              <div className="absolute top-1/2 left-0 right-0 h-[64px] -mt-[32px] bg-white/5 border-y border-white/5 backdrop-blur-[1px] z-0 flex items-center justify-between px-6">
                  <div className="absolute right-6 text-right">
                      <span className="text-[10px] text-yellow-400/60 font-bold uppercase tracking-widest block mb-0.5">Est. Total</span>
                      <span className="text-xl font-bold text-yellow-400 font-mono tracking-tight">{totalCost}</span>
                  </div>
               </div>
-              <div ref={scrollRef} onScroll={handleScroll} className="w-full h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar py-[calc(50%-32px)]" style={{ scrollBehavior: 'smooth' }}>
+              
+              <div 
+                ref={scrollRef} 
+                onScroll={handleScroll} 
+                className="w-full h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar py-[64px]" /* padding top/bottom = height of one item to allow top/bottom items to center */
+                style={{ scrollBehavior: 'smooth' }}
+              >
                 {months.map((date, i) => {
+                  // Check if this specific month matches the selected state
                   const isSelected = selectedDate.getMonth() === date.getMonth() && selectedDate.getFullYear() === date.getFullYear();
+                  
                   return (
-                    <div key={i} className={`h-[64px] w-full flex items-center px-6 snap-center transition-all duration-300 ${isSelected ? 'opacity-100 pl-4' : 'opacity-30 scale-90 blur-[1px]'}`}>
+                    <div 
+                        key={i} 
+                        className={`h-[64px] w-full flex items-center px-6 snap-center transition-all duration-200 ${isSelected ? 'opacity-100 pl-4 scale-105' : 'opacity-30 scale-95 blur-[0.5px]'}`}
+                    >
                       <div className="text-left">
                         <div className={`font-bold text-xl ${isSelected ? 'text-white' : 'text-slate-300'}`}>{date.toLocaleString('default', { month: 'long' })}</div>
                         <div className="text-[10px] font-mono text-slate-400 tracking-widest">{date.getFullYear()}</div>
@@ -367,14 +390,16 @@
 
             return (
                 <div className="flex flex-col h-full bg-[#0f172a]"> 
-                    <div className="glass-panel px-6 py-4 flex justify-between items-center z-10">
-                        <div>
-                            <h1 className="font-bold text-lg text-white">My Memberships</h1>
+                    <div className="glass-panel px-6 flex justify-between items-center z-10 sticky top-0">
+                        <div className="pt-2"> 
+                            <h1 className="font-bold text-lg text-white">Mumi's Tracker</h1>
                             <div className="text-[11px] text-slate-400 font-medium">{activeCount} Active • 1$ = {exchangeRate.toFixed(1)}₺</div>
                         </div>
-                        <button onClick={() => setFilterOpen(!filterOpen)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${filterOpen ? 'bg-yellow-400 text-slate-900' : 'bg-white/5 text-slate-300 border border-white/10'}`}>
-                            <Icons.Filter size={18} />
-                        </button>
+                        <div className="pt-2">
+                            <button onClick={() => setFilterOpen(!filterOpen)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${filterOpen ? 'bg-yellow-400 text-slate-900' : 'bg-white/5 text-slate-300 border border-white/10'}`}>
+                                <Icons.Filter size={18} />
+                            </button>
+                        </div>
                     </div>
                     {filterOpen && (
                         <div className="bg-[#1e293b] border-b border-white/5 p-4 animate-in slide-in-from-top-2 z-0">
@@ -430,7 +455,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="text-right">a
                                         <div className="font-bold text-lg text-white tracking-tight">{formatMoney(displayCost, viewCurrency)}</div>
                                         <div className={`text-[10px] font-bold ${approaching && !isCancelled ? 'text-yellow-400' : 'text-slate-500'}`}>{new Date(sub.startDate).getDate()}{['st','nd','rd'][((new Date(sub.startDate).getDate()+90)%100-10)%10-1]||'th'}</div>
                                     </div>
