@@ -9,7 +9,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0f172a">
     <meta name="application-name" content="Mumi Tracker">
-    <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/tr/8/86/Fenerbah%C3%A7e_SK.png">
+    <!-- Updated App Icon to MS Logo -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230f172a'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='%23facc15' font-family='sans-serif' font-weight='bold' font-size='280'%3EMS%3C/text%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230f172a'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='%23facc15' font-family='sans-serif' font-weight='bold' font-size='280'%3EMS%3C/text%3E%3C/svg%3E">
     
     <title>Mumi's Tracker Pro</title>
     
@@ -45,7 +47,7 @@
         }
         
         .glass-panel {
-            background: rgba(15, 23, 42, 0.95); /* Daha koyu arka plan */
+            background: rgba(15, 23, 42, 0.95); /* Updated for better contrast */
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -73,16 +75,15 @@
         input::placeholder { color: #64748b; }
     </style>
 </head>
-<body class="h-screen overflow-hidden bg-[#0f172a]"> <!-- Body BG forced -->
+<body class="h-screen overflow-hidden bg-[#0f172a]">
     <div id="root" class="h-full"></div>
 
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
         import { getFirestore, collection, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
         // --- ICONS ---
-        // Sizing fix: minWidth/minHeight added to prevent squishing or exploding
         const IconBase = ({ size = 24, children, ...props }) => (
             <svg 
                 width={size} 
@@ -355,7 +356,7 @@
             }, [subscriptions, filterMethod, sortType, viewCurrency, exchangeRate]);
 
             return (
-                <div className="flex flex-col h-full bg-[#0f172a]"> {/* FORCE DARK BG */}
+                <div className="flex flex-col h-full bg-[#0f172a]"> 
                     <div className="glass-panel px-6 py-4 flex justify-between items-center z-10 pt-safe">
                         <div>
                             <h1 className="font-bold text-lg text-white">My Memberships</h1>
